@@ -234,6 +234,7 @@ public class Application {
             Iterator<InstanceInfo> it = instanceInfoList.iterator();
             while (it.hasNext()) {
                 InstanceInfo instanceInfo = it.next();
+                // 移除状态不为 UP 的InstanceInfo
                 if (filterUpInstances && InstanceStatus.UP != instanceInfo.getStatus()) {
                     it.remove();
                 } else if (remoteIndexingActive) {
@@ -260,7 +261,7 @@ public class Application {
             }
 
         }
-        // 打乱
+        // 打乱应用的顺序
         Collections.shuffle(instanceInfoList, shuffleRandom);
         this.shuffledInstances.set(instanceInfoList);
     }

@@ -33,13 +33,16 @@ public abstract class AbstractAzToRegionMapper implements AzToRegionMapper {
      * will not be used.
      */
     private final Multimap<String, String> defaultRegionVsAzMap =
-            Multimaps.newListMultimap(new HashMap<String, Collection<String>>(), new Supplier<List<String>>() {
-                @Override
-                public List<String> get() {
-                    return new ArrayList<String>();
-                }
-            });
+        Multimaps.newListMultimap(new HashMap<String, Collection<String>>(), new Supplier<List<String>>() {
+            @Override
+            public List<String> get() {
+                return new ArrayList<String>();
+            }
+        });
 
+    /**
+     * 可用的zoo >> region 的映射
+     */
     private final Map<String, String> availabilityZoneVsRegion = new ConcurrentHashMap<String, String>();
     private String[] regionsToFetch;
 
@@ -48,19 +51,26 @@ public abstract class AbstractAzToRegionMapper implements AzToRegionMapper {
         populateDefaultAZToRegionMap();
     }
 
+    /**
+     * 设置可被拉取注册信息的Region
+     *
+     * @param regionsToFetch Regions to fetch. This should be the super set of all regions that this mapper should know.
+     */
     @Override
     public synchronized void setRegionsToFetch(String[] regionsToFetch) {
         if (null != regionsToFetch) {
+            // 更新可Fetch的Region
             this.regionsToFetch = regionsToFetch;
             logger.info("Fetching availability zone to region mapping for regions {}", Arrays.toString(regionsToFetch));
             availabilityZoneVsRegion.clear();
             for (String remoteRegion : regionsToFetch) {
+                // 获取指定Region的可用的zones
                 Set<String> availabilityZones = getZonesForARegion(remoteRegion);
                 if (null == availabilityZones
-                        || (availabilityZones.size() == 1 && availabilityZones.contains(DEFAULT_ZONE))
-                        || availabilityZones.isEmpty()) {
+                    || (availabilityZones.size() == 1 && availabilityZones.contains(DEFAULT_ZONE))
+                    || availabilityZones.isEmpty()) {
                     logger.info("No availability zone information available for remote region: " + remoteRegion
-                            + ". Now checking in the default mapping.");
+                        + ". Now checking in the default mapping.");
                     if (defaultRegionVsAzMap.containsKey(remoteRegion)) {
                         Collection<String> defaultAvailabilityZones = defaultRegionVsAzMap.get(remoteRegion);
                         for (String defaultAvailabilityZone : defaultAvailabilityZones) {
@@ -68,12 +78,13 @@ public abstract class AbstractAzToRegionMapper implements AzToRegionMapper {
                         }
                     } else {
                         String msg = "No availability zone information available for remote region: " + remoteRegion
-                                + ". This is required if registry information for this region is configured to be "
-                                + "fetched.";
+                            + ". This is required if registry information for this region is configured to be "
+                            + "fetched.";
                         logger.error(msg);
                         throw new RuntimeException(msg);
                     }
                 } else {
+                    // 更新 zone >> region 的映射关系
                     for (String availabilityZone : availabilityZones) {
                         availabilityZoneVsRegion.put(availabilityZone, remoteRegion);
                     }
@@ -90,6 +101,7 @@ public abstract class AbstractAzToRegionMapper implements AzToRegionMapper {
 
     /**
      * Returns all the zones in the provided region.
+     *
      * @param region the region whose zones you want
      * @return a set of zones
      */
@@ -112,6 +124,7 @@ public abstract class AbstractAzToRegionMapper implements AzToRegionMapper {
 
     /**
      * Tries to determine what region we're in, based on the provided availability zone.
+     *
      * @param availabilityZone the availability zone to inspect
      * @return the region, if available; null otherwise
      */

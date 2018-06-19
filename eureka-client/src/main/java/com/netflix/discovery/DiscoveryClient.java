@@ -1099,6 +1099,7 @@ public class DiscoveryClient implements EurekaClient {
         if (apps == null) {
             logger.error("The application is null for some reason. Not storing this information");
         } else if (fetchRegistryGeneration.compareAndSet(currentUpdateGeneration, currentUpdateGeneration + 1)) {
+            // 过滤和打乱 InstanceInfo,然后将最终结果设置到本地缓存
             localRegionApps.set(this.filterAndShuffle(apps));
             logger.debug("Got full registry with apps hashcode {}", apps.getAppsHashCode());
         } else {
@@ -1223,7 +1224,7 @@ public class DiscoveryClient implements EurekaClient {
         }
     }
 
-    /**
+    /** 更新增量信息,合并入本地缓存
      * Updates the delta information fetches from the eureka server into the
      * local cache.
      *
@@ -1495,24 +1496,32 @@ public class DiscoveryClient implements EurekaClient {
         }
     }
 
+    /**
+     * 更新注册表
+     */
     @VisibleForTesting
     void refreshRegistry() {
         try {
-            // TODO 芋艿：TODO[0009]：RemoteRegionRegistry
+            // 是否从指定的几个Region获取注册信息
             boolean isFetchingRemoteRegionRegistries = isFetchingRemoteRegionRegistries();
-
+            // 远程Region是否有变化
             boolean remoteRegionsModified = false;
             // This makes sure that a dynamic change to remote regions to fetch is honored.
+            // 最新的远程Region信息
             String latestRemoteRegions = clientConfig.fetchRegistryForRemoteRegions();
             if (null != latestRemoteRegions) {
                 String currentRemoteRegions = remoteRegionsToFetch.get();
+                // 如果当前Region信息和最新的Region不一致
                 if (!latestRemoteRegions.equals(currentRemoteRegions)) {
                     // Both remoteRegionsToFetch and AzToRegionMapper.regionsToFetch need to be in sync
                     synchronized (instanceRegionChecker.getAzToRegionMapper()) {
+                        // 更新最近拉取的Region信息
                         if (remoteRegionsToFetch.compareAndSet(currentRemoteRegions, latestRemoteRegions)) {
                             String[] remoteRegions = latestRemoteRegions.split(",");
                             remoteRegionsRef.set(remoteRegions);
+                            // 更新最新的Region信息
                             instanceRegionChecker.getAzToRegionMapper().setRegionsToFetch(remoteRegions);
+                            // 远程Region有变化
                             remoteRegionsModified = true;
                         } else {
                             logger.info("Remote regions to fetch modified concurrently," +
@@ -1521,6 +1530,7 @@ public class DiscoveryClient implements EurekaClient {
                     }
                 } else {
                     // Just refresh mapping to reflect any DNS/Property change
+                    // 远程Region没有变化,那么仅仅更新zone > region 的映射关系
                     instanceRegionChecker.getAzToRegionMapper().refreshMapping();
                 }
             }
@@ -1617,6 +1627,7 @@ public class DiscoveryClient implements EurekaClient {
      */
     private Applications filterAndShuffle(Applications apps) {
         if (apps != null) {
+            // 是否指定了从哪些Region获取注册信息
             if (isFetchingRemoteRegionRegistries()) {
                 Map<String, Applications> remoteRegionVsApps = new ConcurrentHashMap<String, Applications>();
                 apps.shuffleAndIndexInstances(remoteRegionVsApps, clientConfig, instanceRegionChecker);
