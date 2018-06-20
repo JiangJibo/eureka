@@ -47,7 +47,7 @@ public class TimedSupervisorTask extends TimerTask {
      */
     private final AtomicLong delay;
     /**
-     * 最大子任务执行频率
+     * 最大任务延迟时间, 也就是在连续续租失败的情况下会不断加长延迟时间 , 最大延时 30 * 10 = 300S
      *
      * 子任务执行超时情况下使用
      */
@@ -60,7 +60,7 @@ public class TimedSupervisorTask extends TimerTask {
         this.timeoutMillis = timeUnit.toMillis(timeout);
         this.task = task;
         this.delay = new AtomicLong(timeoutMillis);
-        this.maxDelay = timeoutMillis * expBackOffBound;
+        this.maxDelay = timeoutMillis * expBackOffBound;  // 30 * 10
 
         // Initialize the counters and register.
         timeoutCounter = Monitors.newCounter("timeouts");
@@ -91,6 +91,7 @@ public class TimedSupervisorTask extends TimerTask {
             // 设置 下一次任务执行频率
             long currentDelay = delay.get();
             long newDelay = Math.min(maxDelay, currentDelay * 2);
+            // 更新延迟时间, 默认为原来的两倍长，但不超过最大延迟 300S
             delay.compareAndSet(currentDelay, newDelay);
 
         } catch (RejectedExecutionException e) {

@@ -869,7 +869,7 @@ public class DiscoveryClient implements EurekaClient {
         return httpResponse.getStatusCode() == 204;
     }
 
-    /**
+    /** 续租, 如果在续租失败, 重新注册期间, InstanceInfo 被修改过, 也就是说注册的数据是脏的, 设置{@link InstanceInfo#isInstanceInfoDirty} == true
      * Renew with the eureka service by making the appropriate REST call
      */
     boolean renew() {
@@ -880,10 +880,13 @@ public class DiscoveryClient implements EurekaClient {
             if (httpResponse.getStatusCode() == 404) {
                 REREGISTER_COUNTER.increment();
                 logger.info("{} - Re-registering apps/{}", PREFIX + appPathIdentifier, instanceInfo.getAppName());
+                // 设置脏时间
                 long timestamp = instanceInfo.setIsDirtyWithTime();
                 // 发起注册
                 boolean success = register();
                 if (success) {
+                    // 如果 timestamp >=  instanceInfo内的的 lastDirtyTimestamp , 那么说明 instanceInfo 在注册期间未被修改过, 那么重置脏状态
+                    // 如果 instanceInfo 在注册期间被修改过, 那么  lastDirtyTimestamp > timestamp, 此时instanceInfo应该是脏状态
                     instanceInfo.unsetIsDirty(timestamp);
                 }
                 return success;
@@ -1311,11 +1314,11 @@ public class DiscoveryClient implements EurekaClient {
 
         // 向 Eureka-Server 心跳（续租）执行器
         if (clientConfig.shouldRegisterWithEureka()) {
-            int renewalIntervalInSecs = instanceInfo.getLeaseInfo().getRenewalIntervalInSecs(); // 续租频率
-            int expBackOffBound = clientConfig.getHeartbeatExecutorExponentialBackOffBound(); // 系数
+            int renewalIntervalInSecs = instanceInfo.getLeaseInfo().getRenewalIntervalInSecs(); // 续租频率 30S
+            int expBackOffBound = clientConfig.getHeartbeatExecutorExponentialBackOffBound(); // 心跳执行超时后的延迟重试时间倍数 10
             logger.info("Starting heartbeat executor: " + "renew interval is: " + renewalIntervalInSecs);
 
-            // Heartbeat timer
+            // Heartbeat timer,每隔30S执行一次续租(发送心跳)
             scheduler.schedule(
                     new TimedSupervisorTask(
                             "heartbeat",
@@ -1452,6 +1455,10 @@ public class DiscoveryClient implements EurekaClient {
      */
     private class HeartbeatThread implements Runnable {
 
+        /**
+         *  续租成功更新最后心跳时间
+         */
+        @Override
         public void run() {
             if (renew()) {
                 lastSuccessfulHeartbeatTimestamp = System.currentTimeMillis();

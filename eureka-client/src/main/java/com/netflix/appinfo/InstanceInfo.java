@@ -172,6 +172,9 @@ public class InstanceInfo {
 
     private volatile InstanceStatus overriddenstatus = InstanceStatus.UNKNOWN;
 
+    /**
+     * 实例数据是否脏了,也就是刚被修改过, 未同步至Server
+     */
     @XStreamOmitField
     private volatile boolean isInstanceInfoDirty = false;
     /**
