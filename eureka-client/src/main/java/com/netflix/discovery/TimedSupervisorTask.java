@@ -11,7 +11,7 @@ import java.util.TimerTask;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicLong;
 
-/**
+/** 定时的受监管的任务
  * A supervisor task that schedules subtasks while enforce a timeout.
  * Wrapped subtasks must be thread safe.
  *
@@ -57,10 +57,10 @@ public class TimedSupervisorTask extends TimerTask {
                                int timeout, TimeUnit timeUnit, int expBackOffBound, Runnable task) {
         this.scheduler = scheduler;
         this.executor = executor;
-        this.timeoutMillis = timeUnit.toMillis(timeout);
+        this.timeoutMillis = timeUnit.toMillis(timeout); // 30*1000
         this.task = task;
         this.delay = new AtomicLong(timeoutMillis);
-        this.maxDelay = timeoutMillis * expBackOffBound;  // 30 * 10
+        this.maxDelay = timeoutMillis * expBackOffBound;  // 30*1000*10 = 300000, 300S
 
         // Initialize the counters and register.
         timeoutCounter = Monitors.newCounter("timeouts");
@@ -70,6 +70,10 @@ public class TimedSupervisorTask extends TimerTask {
         Monitors.registerObject(name, this);
     }
 
+    /**
+     * 执行发送心跳, 在一次心跳结束设定下次心跳的发送时间
+     * 在Finally里设置
+     */
     @Override
     public void run() {
         Future<?> future = null;
@@ -78,7 +82,7 @@ public class TimedSupervisorTask extends TimerTask {
             future = executor.submit(task);
             //
             threadPoolLevelGauge.set((long) executor.getActiveCount());
-            // 等待任务 执行完成 或 超时
+            // 等待任务 执行完成 或 超时, 时长30*1000 ms
             future.get(timeoutMillis, TimeUnit.MILLISECONDS);  // block until done or timeout
             // 设置 下一次任务执行频率
             delay.set(timeoutMillis);
@@ -115,8 +119,7 @@ public class TimedSupervisorTask extends TimerTask {
             if (future != null) {
                 future.cancel(true);
             }
-
-            // 调度 下次任务
+            // 调度 下次任务, 设置延迟时间, 延迟时间的单元时毫秒, delay最大值是300S, 也就是最多延迟300S
             if (!scheduler.isShutdown()) {
                 scheduler.schedule(this, delay.get(), TimeUnit.MILLISECONDS);
             }

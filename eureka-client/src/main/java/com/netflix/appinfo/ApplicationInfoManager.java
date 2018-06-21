@@ -244,8 +244,8 @@ public class ApplicationInfoManager {
         if (leaseInfo == null) {
             return;
         }
-        int currentLeaseDuration = config.getLeaseExpirationDurationInSeconds();
-        int currentLeaseRenewal = config.getLeaseRenewalIntervalInSeconds();
+        int currentLeaseDuration = config.getLeaseExpirationDurationInSeconds();  // 90S
+        int currentLeaseRenewal = config.getLeaseRenewalIntervalInSeconds();      // 30S
         if (leaseInfo.getDurationInSecs() != currentLeaseDuration // 租约过期时间 改变
                 || leaseInfo.getRenewalIntervalInSecs() != currentLeaseRenewal) { // 租约续约频率 改变
             LeaseInfo newLeaseInfo = LeaseInfo.Builder.newBuilder()
