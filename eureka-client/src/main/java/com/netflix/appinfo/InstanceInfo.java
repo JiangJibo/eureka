@@ -1416,8 +1416,9 @@ public class InstanceInfo {
      * @return - The zone in which the particular instance belongs to.
      */
     public static String getZone(String[] availZones, InstanceInfo myInfo) {
-        String instanceZone = ((availZones == null || availZones.length == 0) ? "default"
-                : availZones[0]);
+        // 未配置时 default , 否则为配置的第一个
+        String instanceZone = ((availZones == null || availZones.length == 0) ? "default" : availZones[0]);
+        // 若数据中心的为 Amazon, 默认情况下为 MyOwn
         if (myInfo != null && myInfo.getDataCenterInfo().getName() == DataCenterInfo.Name.Amazon) {
             String awsInstanceZone = ((AmazonInfo) myInfo.getDataCenterInfo()).get(AmazonInfo.MetaDataKey.availabilityZone);
             if (awsInstanceZone != null) {

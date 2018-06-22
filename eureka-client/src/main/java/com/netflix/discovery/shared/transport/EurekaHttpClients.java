@@ -122,25 +122,25 @@ public final class EurekaHttpClients {
         return defaultBootstrapResolver(clientConfig, myInstanceInfo);
     }
 
-    /**
+    /** 通过 {@link EurekaClientConfig} 和 {@link InstanceInfo} 来创建 {@link ClusterResolver<AwsEndpoint>} 集群解析器, 用于集群下获取Server Endpoint
      * @return a bootstrap resolver that resolves eureka server endpoints based on either DNS or static config,
      *         depending on configuration for one or the other. This resolver will warm up at the start.
      */
     static ClosableResolver<AwsEndpoint> defaultBootstrapResolver(final EurekaClientConfig clientConfig,
                                                                   final InstanceInfo myInstanceInfo) {
-        // 获得 可用区集合
+        // 获得 配置的可用区集合
         String[] availZones = clientConfig.getAvailabilityZones(clientConfig.getRegion());
         // 获得 应用实例的 可用区
         String myZone = InstanceInfo.getZone(availZones, myInstanceInfo);
 
-        // 创建 ZoneAffinityClusterResolver
+        // 创建 ZoneAffinityClusterResolver, 亲和Zone的集群解析器
         ClusterResolver<AwsEndpoint> delegateResolver = new ZoneAffinityClusterResolver(
                 new ConfigClusterResolver(clientConfig, myInstanceInfo),
                 myZone,
                 true
         );
 
-        // 第一次 EndPoint 解析
+        // 第一次 EndPoint 解析, 只选择Region和自身相同的AwsEndpoint, 第一个可用Zone位于List第一位
         List<AwsEndpoint> initialValue = delegateResolver.getClusterEndpoints();
 
         // 解析不到 Eureka-Server EndPoint ，快速失败

@@ -45,15 +45,19 @@ public final class ResolverUtils {
     }
 
     /**
+     * 返回含两个元素的数组，第一个元素是zone相同的AwsEndpoint(本地可用区) ,第二个元素是不同的AwsEndpoint
+     *
+     * @param eurekaEndpoints
+     * @param myZone
      * @return returns two element array with first item containing list of endpoints from client's zone,
-     *         and in the second list all the remaining ones
+     * and in the second list all the remaining ones
      */
     public static List<AwsEndpoint>[] splitByZone(List<AwsEndpoint> eurekaEndpoints, String myZone) {
         if (eurekaEndpoints.isEmpty()) {
-            return new List[]{Collections.emptyList(), Collections.emptyList()};
+            return new List[] {Collections.emptyList(), Collections.emptyList()};
         }
         if (myZone == null) {
-            return new List[]{Collections.emptyList(), new ArrayList<>(eurekaEndpoints)};
+            return new List[] {Collections.emptyList(), new ArrayList<>(eurekaEndpoints)};
         }
         List<AwsEndpoint> myZoneList = new ArrayList<>(eurekaEndpoints.size());
         List<AwsEndpoint> remainingZonesList = new ArrayList<>(eurekaEndpoints.size());
@@ -64,7 +68,7 @@ public final class ResolverUtils {
                 remainingZonesList.add(endpoint);
             }
         }
-        return new List[]{myZoneList, remainingZonesList};
+        return new List[] {myZoneList, remainingZonesList};
     }
 
     public static String extractZoneFromHostName(String hostName) {
@@ -118,13 +122,13 @@ public final class ResolverUtils {
         String zone = null;
         DataCenterInfo dataCenterInfo = instanceInfo.getDataCenterInfo();
         if (dataCenterInfo instanceof AmazonInfo) {
-            zone = ((AmazonInfo) dataCenterInfo).get(AmazonInfo.MetaDataKey.availabilityZone);
+            zone = ((AmazonInfo)dataCenterInfo).get(AmazonInfo.MetaDataKey.availabilityZone);
         }
 
         String networkAddress;
         if (transportConfig.applicationsResolverUseIp()) {
             if (instanceInfo.getDataCenterInfo() instanceof AmazonInfo) {
-                networkAddress = ((AmazonInfo) instanceInfo.getDataCenterInfo()).get(AmazonInfo.MetaDataKey.localIpv4);
+                networkAddress = ((AmazonInfo)instanceInfo.getDataCenterInfo()).get(AmazonInfo.MetaDataKey.localIpv4);
             } else {
                 networkAddress = instanceInfo.getIPAddr();
             }
@@ -138,12 +142,12 @@ public final class ResolverUtils {
         }
 
         return new AwsEndpoint(
-                networkAddress,
-                instanceInfo.getPort(),
-                false,
-                clientConfig.getEurekaServerURLContext(),
-                clientConfig.getRegion(),
-                zone
+            networkAddress,
+            instanceInfo.getPort(),
+            false,
+            clientConfig.getEurekaServerURLContext(),
+            clientConfig.getRegion(),
+            zone
         );
     }
 }

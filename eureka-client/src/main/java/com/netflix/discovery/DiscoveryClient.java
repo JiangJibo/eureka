@@ -217,6 +217,9 @@ public class DiscoveryClient implements EurekaClient {
      */
     private final long initTimestampMs;
 
+    /**
+     * Eureka的网络传输层
+     */
     private static final class EurekaTransport {
 
         private ClosableResolver bootstrapResolver;
@@ -421,7 +424,7 @@ public class DiscoveryClient implements EurekaClient {
                     .setNameFormat("DiscoveryClient-%d")
                     .setDaemon(true)
                     .build());
-
+            // maximumPoolSize = 2
             heartbeatExecutor = new ThreadPoolExecutor(
                 1, clientConfig.getHeartbeatExecutorThreadPoolSize(), 0, TimeUnit.SECONDS,
                 new SynchronousQueue<Runnable>(),
@@ -430,7 +433,7 @@ public class DiscoveryClient implements EurekaClient {
                     .setDaemon(true)
                     .build()
             );  // use direct handoff
-
+            // maximumPoolSize = 2
             cacheRefreshExecutor = new ThreadPoolExecutor(
                 1, clientConfig.getCacheRefreshExecutorThreadPoolSize(), 0, TimeUnit.SECONDS,
                 new SynchronousQueue<Runnable>(),

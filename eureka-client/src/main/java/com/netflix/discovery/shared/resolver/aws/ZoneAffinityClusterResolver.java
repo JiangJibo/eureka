@@ -25,6 +25,8 @@ import java.util.Collections;
 import java.util.List;
 
 /**
+ * 亲和Zone的集群解析器
+ * 这是一个集群解析器,它会对Server List 重排序, 将那些zone与应用自身的zone相同的Server排在List前面
  * It is a cluster resolver that reorders the server list, such that the first server on the list
  * is in the same zone as the client. The server is chosen randomly from the available pool of server in
  * that zone. The remaining servers are appended in a random order, local zone first, followed by servers from other zones.
@@ -63,12 +65,17 @@ public class ZoneAffinityClusterResolver implements ClusterResolver<AwsEndpoint>
         return delegate.getRegion();
     }
 
+    /**
+     * 本地可用区排前, 非本地可用区排后
+     *
+     * @return
+     */
     @Override
     public List<AwsEndpoint> getClusterEndpoints() {
         // 拆分成 本地的可用区和非本地的可用区的 EndPoint 集群
         List<AwsEndpoint>[] parts = ResolverUtils.splitByZone(delegate.getClusterEndpoints(), myZone);
-        List<AwsEndpoint> myZoneEndpoints = parts[0];
-        List<AwsEndpoint> remainingEndpoints = parts[1];
+        List<AwsEndpoint> myZoneEndpoints = parts[0];   // 本地可用区, 也就是zone相同的
+        List<AwsEndpoint> remainingEndpoints = parts[1];  // 非本地可用区
         // 随机打乱 EndPoint 集群并进行合并
         List<AwsEndpoint> randomizedList = randomizeAndMerge(myZoneEndpoints, remainingEndpoints);
         // 非可用区亲和，将非本地的可用区的 EndPoint 集群放在前面
@@ -91,6 +98,7 @@ public class ZoneAffinityClusterResolver implements ClusterResolver<AwsEndpoint>
             return ResolverUtils.randomize(myZoneEndpoints); // 打乱
         }
         List<AwsEndpoint> mergedList = ResolverUtils.randomize(myZoneEndpoints); // 打乱
+        // 将非本地可用区放在本地可用区之后
         mergedList.addAll(ResolverUtils.randomize(remainingEndpoints)); // 打乱
         return mergedList;
     }

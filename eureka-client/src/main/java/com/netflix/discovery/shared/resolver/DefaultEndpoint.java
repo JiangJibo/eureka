@@ -45,7 +45,7 @@ public class DefaultEndpoint implements EurekaEndpoint {
      */
     protected final String relativeUri;
     /**
-     * 完整的服务 URL
+     * 完整的服务 URL , 比如 http://localhost:8761/eureka
      */
     protected final String serviceUrl;
 

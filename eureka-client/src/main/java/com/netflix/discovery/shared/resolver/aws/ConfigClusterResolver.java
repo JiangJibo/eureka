@@ -17,6 +17,7 @@ import java.util.Map;
  * @author David Liu
  */
 public class ConfigClusterResolver implements ClusterResolver<AwsEndpoint> {
+
     private static final Logger logger = LoggerFactory.getLogger(ConfigClusterResolver.class);
 
     private final EurekaClientConfig clientConfig;
@@ -41,7 +42,7 @@ public class ConfigClusterResolver implements ClusterResolver<AwsEndpoint> {
             }
             return getClusterEndpointsFromDns();
         } else {
-        // 直接配置实际访问地址
+            // 直接配置实际访问地址
             logger.info("Resolving eureka endpoints via configuration");
             return getClusterEndpointsFromConfig();
         }
@@ -53,12 +54,12 @@ public class ConfigClusterResolver implements ClusterResolver<AwsEndpoint> {
 
         // cheap enough so just re-use
         DnsTxtRecordClusterResolver dnsResolver = new DnsTxtRecordClusterResolver(
-                getRegion(),
-                discoveryDnsName,
-                true, // 解析 zone
-                port,
-                false,
-                clientConfig.getEurekaServerURLContext()
+            getRegion(),
+            discoveryDnsName,
+            true, // 解析 zone
+            port,
+            false,
+            clientConfig.getEurekaServerURLContext()
         );
 
         // 调用 DnsTxtRecordClusterResolver 解析 EndPoint
@@ -72,17 +73,18 @@ public class ConfigClusterResolver implements ClusterResolver<AwsEndpoint> {
     }
 
     private List<AwsEndpoint> getClusterEndpointsFromConfig() {
-        // 获得 可用区
+        // 获得 可用区,默认值 "defaultZone", 在获取zones时,只会获取到同一个Region下的zone, 也就是availZones的Region是同一个,都是当前应用的Region
         String[] availZones = clientConfig.getAvailabilityZones(clientConfig.getRegion());
-        // 获取 应用实例自己 的 可用区
+        // 获取 应用实例自己 的 可用区, 当有多个可用区是返回第一个
         String myZone = InstanceInfo.getZone(availZones, myInstanceInfo);
-        // 获得 可用区与 serviceUrls 的映射
+        // 获得 可用区与 serviceUrls 的映射, 返回的结果集是一个LinkedHashMap, 相同zone的urls在第一位
         Map<String, List<String>> serviceUrls = EndpointUtils.getServiceUrlsMapFromConfig(clientConfig, myZone, clientConfig.shouldPreferSameZoneEureka());
-        // 拼装 EndPoint 集群结果
+        // 拼装 EndPoint 集群结果, 相同zone的位于List前端
         List<AwsEndpoint> endpoints = new ArrayList<>();
         for (String zone : serviceUrls.keySet()) {
             for (String url : serviceUrls.get(zone)) {
                 try {
+                    //实例化亚马逊云节点, 也就是Eureka Server 节点
                     endpoints.add(new AwsEndpoint(url, getRegion(), zone));
                 } catch (Exception ignore) {
                     logger.warn("Invalid eureka server URI: {}; removing from the server pool", url);
