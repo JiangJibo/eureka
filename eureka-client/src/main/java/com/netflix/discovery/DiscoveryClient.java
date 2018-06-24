@@ -531,7 +531,7 @@ public class DiscoveryClient implements EurekaClient {
         // Ignore the raw types warnings since the client filter interface changed between jersey 1/2
         @SuppressWarnings("rawtypes")
         TransportClientFactories transportClientFactories = argsTransportClientFactories == null
-            ? new Jersey1TransportClientFactories()
+            ? new Jersey1TransportClientFactories()    // 默认情况下使用Jesey1作为Http传输框架
             : argsTransportClientFactories;
 
         // If the transport factory was not supplied with args, assume they are using jersey 1 for passivity
