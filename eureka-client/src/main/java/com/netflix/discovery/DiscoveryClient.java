@@ -222,12 +222,24 @@ public class DiscoveryClient implements EurekaClient {
      */
     private static final class EurekaTransport {
 
+        /**
+         * 通过Region,Zone,EurekaServer URL 生成 Server节点集群
+         */
         private ClosableResolver bootstrapResolver;
+        /**
+         * 通过Eureka Server Endpoint生成{@link EurekaHttpClient}
+         */
         private TransportClientFactory transportClientFactory;
 
+        /**
+         * 注册客户端
+         */
         private EurekaHttpClient registrationClient;
         private EurekaHttpClientFactory registrationClientFactory;
 
+        /**
+         * 拉取注册信息客户端
+         */
         private EurekaHttpClient queryClient;
         private EurekaHttpClientFactory queryClientFactory;
 
@@ -445,6 +457,7 @@ public class DiscoveryClient implements EurekaClient {
 
             // 【3.2.10】初始化 Eureka 网络通信相关
             eurekaTransport = new EurekaTransport();
+            // 初始化和定时设置 AWSEndpoint , 也就是EurekaServer, 定期从配置信息中读取EurekaServer的URL，Region,Zone, 生成Server Endpoint
             scheduleServerEndpointTask(eurekaTransport, args);
 
             // 【3.2.11】初始化 InstanceRegionChecker
@@ -494,8 +507,13 @@ public class DiscoveryClient implements EurekaClient {
             initTimestampMs, this.getApplications().size());
     }
 
-    private void scheduleServerEndpointTask(EurekaTransport eurekaTransport,
-                                            AbstractDiscoveryClientOptionalArgs args) {
+    /**
+     * 设置定时生成Server Endpoint 任务
+     *
+     * @param eurekaTransport
+     * @param args
+     */
+    private void scheduleServerEndpointTask(EurekaTransport eurekaTransport, AbstractDiscoveryClientOptionalArgs args) {
 
         Collection<?> additionalFilters = args == null
             ? Collections.emptyList()
@@ -547,6 +565,7 @@ public class DiscoveryClient implements EurekaClient {
             applicationsSource
         );
 
+        // 生成注册用的传输客户端
         if (clientConfig.shouldRegisterWithEureka()) {
             EurekaHttpClientFactory newRegistrationClientFactory = null;
             EurekaHttpClient newRegistrationClient = null;

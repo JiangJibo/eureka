@@ -25,12 +25,14 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.ws.rs.core.UriBuilder;
+
 import java.net.URI;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
+ * 处理重定向的Client, 根根据请求返回的302代码和重定向URL,重新生成EurekaHttpClient
  * {@link EurekaHttpClient} that follows redirect links, and executes the requests against
  * the finally resolved endpoint.
  * If registration and query requests must handled separately, two different instances shall be created.
@@ -43,7 +45,7 @@ public class RedirectingEurekaHttpClient extends EurekaHttpClientDecorator {
 
     private static final Logger logger = LoggerFactory.getLogger(RedirectingEurekaHttpClient.class);
 
-    public static final int MAX_FOLLOWED_REDIRECTS = 10;
+    public static final int MAX_FOLLOWED_REDIRECTS = 10;  // 最大允许重定向次数
     private static final Pattern REDIRECT_PATH_REGEX = Pattern.compile("(.*/v2/)apps(/.*)?$");
 
     private final EurekaEndpoint serviceEndpoint;
@@ -150,10 +152,10 @@ public class RedirectingEurekaHttpClient extends EurekaHttpClientDecorator {
         Matcher pathMatcher = REDIRECT_PATH_REGEX.matcher(locationURI.getPath());
         if (pathMatcher.matches()) {
             return UriBuilder.fromUri(locationURI)
-                    .host(dnsService.resolveIp(locationURI.getHost())) // 将 host 解析成 ip
-                    .replacePath(pathMatcher.group(1))
-                    .replaceQuery(null)
-                    .build();
+                .host(dnsService.resolveIp(locationURI.getHost())) // 将 host 解析成 ip
+                .replacePath(pathMatcher.group(1))
+                .replaceQuery(null)
+                .build();
         }
         logger.warn("Invalid redirect URL {}", locationURI);
         return null;

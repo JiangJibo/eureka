@@ -43,6 +43,17 @@ public final class EurekaHttpClients {
     private EurekaHttpClients() {
     }
 
+    /**
+     * 生成拉取注册信息的HttpClient , 名称 ： "query"
+     *
+     * @param bootstrapResolver
+     * @param transportClientFactory
+     * @param clientConfig
+     * @param transportConfig
+     * @param myInstanceInfo
+     * @param applicationsSource
+     * @return
+     */
     public static EurekaHttpClientFactory queryClientFactory(ClusterResolver bootstrapResolver,
                                                              TransportClientFactory transportClientFactory,
                                                              EurekaClientConfig clientConfig,
@@ -51,18 +62,35 @@ public final class EurekaHttpClients {
                                                              ApplicationsResolver.ApplicationsSource applicationsSource) {
 
         ClosableResolver queryResolver = transportConfig.useBootstrapResolverForQuery()
-                ? wrapClosable(bootstrapResolver)
-                : queryClientResolver(bootstrapResolver, transportClientFactory,
+            ? wrapClosable(bootstrapResolver)
+            : queryClientResolver(bootstrapResolver, transportClientFactory,
                 clientConfig, transportConfig, myInstanceInfo, applicationsSource);
         return canonicalClientFactory(EurekaClientNames.QUERY, transportConfig, queryResolver, transportClientFactory);
     }
 
+    /**
+     * 生成注册的HttpClient , 名称 ： "registration"
+     *
+     * @param bootstrapResolver
+     * @param transportClientFactory
+     * @param transportConfig
+     * @return
+     */
     public static EurekaHttpClientFactory registrationClientFactory(ClusterResolver bootstrapResolver,
                                                                     TransportClientFactory transportClientFactory,
                                                                     EurekaTransportConfig transportConfig) {
         return canonicalClientFactory(EurekaClientNames.REGISTRATION, transportConfig, bootstrapResolver, transportClientFactory);
     }
 
+    /**
+     * 标准的客户端工厂
+     *
+     * @param name 客户端名称
+     * @param transportConfig
+     * @param clusterResolver
+     * @param transportClientFactory
+     * @return
+     */
     static EurekaHttpClientFactory canonicalClientFactory(final String name,
                                                           final EurekaTransportConfig transportConfig,
                                                           final ClusterResolver<EurekaEndpoint> clusterResolver,
@@ -71,15 +99,15 @@ public final class EurekaHttpClients {
         return new EurekaHttpClientFactory() { // SessionedEurekaHttpClientFactory
             @Override
             public EurekaHttpClient newClient() {
-                return new SessionedEurekaHttpClient(
+                return new SessionedEurekaHttpClient(   // 当一个HttpClient超过会话周期没有请求时, 重新创建新的客户端用于通信
+                    name,
+                    RetryableEurekaHttpClient.createFactory( // RetryableEurekaHttpClient  , 重试次数3
                         name,
-                        RetryableEurekaHttpClient.createFactory( // RetryableEurekaHttpClient
-                                name,
-                                transportConfig,
-                                clusterResolver,
-                                RedirectingEurekaHttpClient.createFactory(transportClientFactory), // RedirectingEurekaHttpClient
-                                ServerStatusEvaluators.legacyEvaluator()),
-                        transportConfig.getSessionedClientReconnectIntervalSeconds() * 1000
+                        transportConfig,
+                        clusterResolver,
+                        RedirectingEurekaHttpClient.createFactory(transportClientFactory), // RedirectingEurekaHttpClient, 处理重定向
+                        ServerStatusEvaluators.legacyEvaluator()),
+                    transportConfig.getSessionedClientReconnectIntervalSeconds() * 1000  // 20*60*1000, 重连接周期
                 );
             }
 
@@ -96,35 +124,47 @@ public final class EurekaHttpClients {
 
     public static final String COMPOSITE_BOOTSTRAP_STRATEGY = "composite";
 
+    /**
+     * 构建Eureka Server 的Endpoint 解析器
+     *
+     * @param clientConfig
+     * @param transportConfig
+     * @param transportClientFactory
+     * @param myInstanceInfo
+     * @param applicationsSource
+     * @return
+     */
     public static ClosableResolver<AwsEndpoint> newBootstrapResolver(
-            final EurekaClientConfig clientConfig,
-            final EurekaTransportConfig transportConfig,
-            final TransportClientFactory transportClientFactory,
-            final InstanceInfo myInstanceInfo,
-            final ApplicationsResolver.ApplicationsSource applicationsSource)
-    {
+        final EurekaClientConfig clientConfig,
+        final EurekaTransportConfig transportConfig,
+        final TransportClientFactory transportClientFactory,
+        final InstanceInfo myInstanceInfo,
+        final ApplicationsResolver.ApplicationsSource applicationsSource) {
+        // 启动时的集群解析策略, 一般不符合
         if (COMPOSITE_BOOTSTRAP_STRATEGY.equals(transportConfig.getBootstrapResolverStrategy())) {
             if (clientConfig.shouldFetchRegistry()) {
                 return compositeBootstrapResolver(
-                        clientConfig,
-                        transportConfig,
-                        transportClientFactory,
-                        myInstanceInfo,
-                        applicationsSource
+                    clientConfig,
+                    transportConfig,
+                    transportClientFactory,
+                    myInstanceInfo,
+                    applicationsSource
                 );
             } else {
                 logger.warn("Cannot create a composite bootstrap resolver if registry fetch is disabled." +
-                        " Falling back to using a default bootstrap resolver.");
+                    " Falling back to using a default bootstrap resolver.");
             }
         }
 
-        // if all else fails, return the default
+        // if all else fails, return the default , 默认情况
         return defaultBootstrapResolver(clientConfig, myInstanceInfo);
     }
 
-    /** 通过 {@link EurekaClientConfig} 和 {@link InstanceInfo} 来创建 {@link ClusterResolver<AwsEndpoint>} 集群解析器, 用于集群下获取Server Endpoint
+    /**
+     * 通过 {@link EurekaClientConfig} 和 {@link InstanceInfo} 来创建 {@link ClusterResolver<AwsEndpoint>} 集群解析器, 用于集群下获取Server Endpoint
+     *
      * @return a bootstrap resolver that resolves eureka server endpoints based on either DNS or static config,
-     *         depending on configuration for one or the other. This resolver will warm up at the start.
+     * depending on configuration for one or the other. This resolver will warm up at the start.
      */
     static ClosableResolver<AwsEndpoint> defaultBootstrapResolver(final EurekaClientConfig clientConfig,
                                                                   final InstanceInfo myInstanceInfo) {
@@ -135,9 +175,9 @@ public final class EurekaHttpClients {
 
         // 创建 ZoneAffinityClusterResolver, 亲和Zone的集群解析器
         ClusterResolver<AwsEndpoint> delegateResolver = new ZoneAffinityClusterResolver(
-                new ConfigClusterResolver(clientConfig, myInstanceInfo),
-                myZone,
-                true
+            new ConfigClusterResolver(clientConfig, myInstanceInfo),
+            myZone,
+            true
         );
 
         // 第一次 EndPoint 解析, 只选择Region和自身相同的AwsEndpoint, 第一个可用Zone位于List第一位
@@ -152,40 +192,39 @@ public final class EurekaHttpClients {
 
         // 创建 AsyncResolver
         return new AsyncResolver<>(
-                EurekaClientNames.BOOTSTRAP,
-                delegateResolver,
-                initialValue,
-                1,
-                clientConfig.getEurekaServiceUrlPollIntervalSeconds() * 1000
+            EurekaClientNames.BOOTSTRAP,
+            delegateResolver,
+            initialValue,
+            1,
+            clientConfig.getEurekaServiceUrlPollIntervalSeconds() * 1000
         );
     }
 
     /**
      * @return a bootstrap resolver that resolves eureka server endpoints via a remote call to a "vip source"
-     *         the local registry, where the source is found from a rootResolver (dns or config)
+     * the local registry, where the source is found from a rootResolver (dns or config)
      */
     static ClosableResolver<AwsEndpoint> compositeBootstrapResolver(
-            final EurekaClientConfig clientConfig,
-            final EurekaTransportConfig transportConfig,
-            final TransportClientFactory transportClientFactory,
-            final InstanceInfo myInstanceInfo,
-            final ApplicationsResolver.ApplicationsSource applicationsSource)
-    {
+        final EurekaClientConfig clientConfig,
+        final EurekaTransportConfig transportConfig,
+        final TransportClientFactory transportClientFactory,
+        final InstanceInfo myInstanceInfo,
+        final ApplicationsResolver.ApplicationsSource applicationsSource) {
         final ClusterResolver rootResolver = new ConfigClusterResolver(clientConfig, myInstanceInfo);
 
         final EurekaHttpResolver remoteResolver = new EurekaHttpResolver(
-                clientConfig,
-                transportConfig,
-                rootResolver,
-                transportClientFactory,
-                transportConfig.getWriteClusterVip()
+            clientConfig,
+            transportConfig,
+            rootResolver,
+            transportClientFactory,
+            transportConfig.getWriteClusterVip()
         );
 
         final ApplicationsResolver localResolver = new ApplicationsResolver(
-                clientConfig,
-                transportConfig,
-                applicationsSource,
-                transportConfig.getWriteClusterVip()
+            clientConfig,
+            transportConfig,
+            applicationsSource,
+            transportConfig.getWriteClusterVip()
         );
 
         ClusterResolver<AwsEndpoint> compositeResolver = new ClusterResolver<AwsEndpoint>() {
@@ -196,7 +235,8 @@ public final class EurekaHttpClients {
 
             @Override
             public List<AwsEndpoint> getClusterEndpoints() {
-                // TODO 芋艿：猜测 1.x 对 2.x 的兼容，Eureka 2.x 注册到 Eureka 1.x ，使用 vipAddress 获取，涉及ApplicationsResolver、EurekaHttpResolver ；优先使用前者解析，若解析不到结果，使用后者，再解析不到，使用 ConfigClusterResolver 。
+                // TODO 芋艿：猜测 1.x 对 2.x 的兼容，Eureka 2.x 注册到 Eureka 1.x ，使用 vipAddress 获取，涉及ApplicationsResolver、EurekaHttpResolver
+                // ；优先使用前者解析，若解析不到结果，使用后者，再解析不到，使用 ConfigClusterResolver 。
                 List<AwsEndpoint> result = localResolver.getClusterEndpoints();
                 if (result.isEmpty()) {
                     result = remoteResolver.getClusterEndpoints();
@@ -217,11 +257,11 @@ public final class EurekaHttpClients {
         String myZone = InstanceInfo.getZone(availZones, myInstanceInfo);
 
         return new AsyncResolver<>(
-                EurekaClientNames.BOOTSTRAP,
-                new ZoneAffinityClusterResolver(compositeResolver, myZone, true),
-                initialValue,
-                transportConfig.getAsyncExecutorThreadPoolSize(),
-                transportConfig.getAsyncResolverRefreshIntervalMs()
+            EurekaClientNames.BOOTSTRAP,
+            new ZoneAffinityClusterResolver(compositeResolver, myZone, true),
+            initialValue,
+            transportConfig.getAsyncExecutorThreadPoolSize(),
+            transportConfig.getAsyncResolverRefreshIntervalMs()
         );
     }
 
@@ -235,40 +275,41 @@ public final class EurekaHttpClients {
                                                              final InstanceInfo myInstanceInfo,
                                                              final ApplicationsResolver.ApplicationsSource applicationsSource) {
         final EurekaHttpResolver remoteResolver = new EurekaHttpResolver(
-                clientConfig,
-                transportConfig,
-                bootstrapResolver,
-                transportClientFactory,
-                transportConfig.getReadClusterVip()
+            clientConfig,
+            transportConfig,
+            bootstrapResolver,
+            transportClientFactory,
+            transportConfig.getReadClusterVip()
         );
 
         final ApplicationsResolver localResolver = new ApplicationsResolver(
-                clientConfig,
-                transportConfig,
-                applicationsSource,
-                transportConfig.getReadClusterVip()
+            clientConfig,
+            transportConfig,
+            applicationsSource,
+            transportConfig.getReadClusterVip()
         );
 
         return compositeQueryResolver(
-                remoteResolver,
-                localResolver,
-                clientConfig,
-                transportConfig,
-                myInstanceInfo
+            remoteResolver,
+            localResolver,
+            clientConfig,
+            transportConfig,
+            myInstanceInfo
         );
     }
 
     /**
      * @return a composite resolver that resolves eureka server endpoints for query operations, given two resolvers:
-     *         a resolver that can resolve targets via a remote call to a remote source, and a resolver that
-     *         can resolve targets via data in the local registry.
+     * a resolver that can resolve targets via a remote call to a remote source, and a resolver that
+     * can resolve targets via data in the local registry.
      */
-    /* testing */ static ClosableResolver<AwsEndpoint> compositeQueryResolver(
-            final ClusterResolver<AwsEndpoint> remoteResolver,
-            final ClusterResolver<AwsEndpoint> localResolver,
-            final EurekaClientConfig clientConfig,
-            final EurekaTransportConfig transportConfig,
-            final InstanceInfo myInstanceInfo) {
+    /* testing */
+    static ClosableResolver<AwsEndpoint> compositeQueryResolver(
+        final ClusterResolver<AwsEndpoint> remoteResolver,
+        final ClusterResolver<AwsEndpoint> localResolver,
+        final EurekaClientConfig clientConfig,
+        final EurekaTransportConfig transportConfig,
+        final InstanceInfo myInstanceInfo) {
         String[] availZones = clientConfig.getAvailabilityZones(clientConfig.getRegion());
         String myZone = InstanceInfo.getZone(availZones, myInstanceInfo);
 
@@ -290,18 +331,17 @@ public final class EurekaHttpClients {
         };
 
         return new AsyncResolver<>(
-                EurekaClientNames.QUERY,
-                new ZoneAffinityClusterResolver(compositeResolver, myZone, true),
-                transportConfig.getAsyncExecutorThreadPoolSize(),
-                transportConfig.getAsyncResolverRefreshIntervalMs(),
-                transportConfig.getAsyncResolverWarmUpTimeoutMs()
+            EurekaClientNames.QUERY,
+            new ZoneAffinityClusterResolver(compositeResolver, myZone, true),
+            transportConfig.getAsyncExecutorThreadPoolSize(),
+            transportConfig.getAsyncResolverRefreshIntervalMs(),
+            transportConfig.getAsyncResolverWarmUpTimeoutMs()
         );
     }
 
-
     static <T extends EurekaEndpoint> ClosableResolver<T> wrapClosable(final ClusterResolver<T> clusterResolver) {
         if (clusterResolver instanceof ClosableResolver) {
-            return (ClosableResolver) clusterResolver;
+            return (ClosableResolver)clusterResolver;
         }
 
         return new ClosableResolver<T>() {

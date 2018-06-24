@@ -66,6 +66,14 @@ public class RetryableEurekaHttpClient extends EurekaHttpClientDecorator {
      */
     private final Set<EurekaEndpoint> quarantineSet = new ConcurrentSkipListSet<>();
 
+    /**
+     * @param name
+     * @param transportConfig
+     * @param clusterResolver
+     * @param clientFactory
+     * @param serverStatusEvaluator
+     * @param numberOfRetries
+     */
     public RetryableEurekaHttpClient(String name,
                                      EurekaTransportConfig transportConfig,
                                      ClusterResolver clusterResolver,
@@ -84,7 +92,7 @@ public class RetryableEurekaHttpClient extends EurekaHttpClientDecorator {
     @Override
     public void shutdown() {
         TransportUtils.shutdown(delegate.get());
-        if(Monitors.isObjectRegistered(name, this)) {
+        if (Monitors.isObjectRegistered(name, this)) {
             Monitors.unregisterObject(name, this);
         }
     }
@@ -93,6 +101,7 @@ public class RetryableEurekaHttpClient extends EurekaHttpClientDecorator {
     protected <R> EurekaHttpResponse<R> execute(RequestExecutor<R> requestExecutor) {
         List<EurekaEndpoint> candidateHosts = null;
         int endpointIdx = 0;
+        // 重试
         for (int retry = 0; retry < numberOfRetries; retry++) {
             EurekaHttpClient currentHttpClient = delegate.get();
             EurekaEndpoint currentEndpoint = null;
@@ -130,7 +139,8 @@ public class RetryableEurekaHttpClient extends EurekaHttpClientDecorator {
                 }
                 logger.warn("Request execution failure with status code {}; retrying on another server if available", response.getStatusCode());
             } catch (Exception e) {
-                logger.warn("Request execution failed with message: {}", e.getMessage());  // just log message as the underlying client should log the stacktrace
+                logger.warn("Request execution failed with message: {}",
+                    e.getMessage());  // just log message as the underlying client should log the stacktrace
             }
 
             // 请求失败，若是 currentHttpClient ，清除 delegate
@@ -154,7 +164,7 @@ public class RetryableEurekaHttpClient extends EurekaHttpClientDecorator {
             @Override
             public EurekaHttpClient newClient() {
                 return new RetryableEurekaHttpClient(name, transportConfig, clusterResolver, delegateFactory,
-                        serverStatusEvaluator, DEFAULT_NUMBER_OF_RETRIES);
+                    serverStatusEvaluator, DEFAULT_NUMBER_OF_RETRIES);
             }
 
             @Override
@@ -164,22 +174,29 @@ public class RetryableEurekaHttpClient extends EurekaHttpClientDecorator {
         };
     }
 
+    /**
+     * 获取Eureka Server主机
+     *
+     * @return
+     */
     private List<EurekaEndpoint> getHostCandidates() {
         // 获得候选的 Eureka-Server 地址数组
         List<EurekaEndpoint> candidateHosts = clusterResolver.getClusterEndpoints();
 
-        // 保留交集（移除 quarantineSet 不在 candidateHosts 的元素）
+        // 保留交集（移除 quarantineSet 不在 candidateHosts 的元素）, 移除quarantineSet里不再有效的Endpoint
         quarantineSet.retainAll(candidateHosts);
 
         // 在保证最小可用的候选的 Eureka-Server 地址数组，移除在隔离集合内的元素
         // If enough hosts are bad, we have no choice but start over again
-        int threshold = (int) (candidateHosts.size() * transportConfig.getRetryableClientQuarantineRefreshPercentage()); // 0.66
+        int threshold = (int)(candidateHosts.size() * transportConfig.getRetryableClientQuarantineRefreshPercentage()); // 0.66
         if (quarantineSet.isEmpty()) {
             // no-op
         } else if (quarantineSet.size() >= threshold) {
+            // 如果被隔离的元素超过整体的2/3,那么移除所有隔离元素,保证可用性
             logger.debug("Clearing quarantined list of size {}", quarantineSet.size());
             quarantineSet.clear();
         } else {
+            // 选取那些未被隔离的元素
             List<EurekaEndpoint> remainingHosts = new ArrayList<>(candidateHosts.size());
             for (EurekaEndpoint endpoint : candidateHosts) {
                 if (!quarantineSet.contains(endpoint)) {
@@ -193,7 +210,7 @@ public class RetryableEurekaHttpClient extends EurekaHttpClientDecorator {
     }
 
     @Monitor(name = METRIC_TRANSPORT_PREFIX + "quarantineSize",
-            description = "number of servers quarantined", type = DataSourceType.GAUGE)
+        description = "number of servers quarantined", type = DataSourceType.GAUGE)
     public long getQuarantineSetSize() {
         return quarantineSet.size();
     }
