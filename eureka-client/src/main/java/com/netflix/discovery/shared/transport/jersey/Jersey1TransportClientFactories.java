@@ -14,9 +14,10 @@ import java.util.Collection;
 
 public class Jersey1TransportClientFactories implements TransportClientFactories<ClientFilter> {
 
+    @Override
     @Deprecated
     public TransportClientFactory newTransportClientFactory(final Collection<ClientFilter> additionalFilters,
-                                                                   final EurekaJerseyClient providedJerseyClient) {
+                                                            final EurekaJerseyClient providedJerseyClient) {
         ApacheHttpClient4 apacheHttpClient = providedJerseyClient.getClient();
         if (additionalFilters != null) {
             for (ClientFilter filter : additionalFilters) {
@@ -43,18 +44,27 @@ public class Jersey1TransportClientFactories implements TransportClientFactories
         };
     }
 
+    /**
+     * 创建Jersey1的传输客户端工厂
+     *
+     * @param clientConfig      客户端配置
+     * @param additionalFilters 额外的客户端过滤器
+     * @param myInstanceInfo    应用实例信息
+     * @return
+     */
+    @Override
     public TransportClientFactory newTransportClientFactory(final EurekaClientConfig clientConfig,
-                                                                   final Collection<ClientFilter> additionalFilters,
-                                                                   final InstanceInfo myInstanceInfo) {
+                                                            final Collection<ClientFilter> additionalFilters,
+                                                            final InstanceInfo myInstanceInfo) {
         // JerseyEurekaHttpClientFactory
         final TransportClientFactory jerseyFactory = JerseyEurekaHttpClientFactory.create(
-                clientConfig,
-                additionalFilters,
-                myInstanceInfo,
-                new EurekaClientIdentity(myInstanceInfo.getIPAddr())
+            clientConfig,
+            additionalFilters,
+            myInstanceInfo,
+            new EurekaClientIdentity(myInstanceInfo.getIPAddr())
         );
 
-        // TransportClientFactory
+        // TransportClientFactory ,  Metrics： ['metrɪks] 指标, 指标收集Eureka Http Client, 延迟,连接错误等指标
         final TransportClientFactory metricsFactory = MetricsCollectingEurekaHttpClient.createFactory(jerseyFactory); // 委托 TransportClientFactory
 
         return new TransportClientFactory() {

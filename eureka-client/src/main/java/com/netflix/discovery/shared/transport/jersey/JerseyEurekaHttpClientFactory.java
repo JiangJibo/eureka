@@ -70,10 +70,10 @@ public class JerseyEurekaHttpClientFactory implements TransportClientFactory {
     @Deprecated
     public JerseyEurekaHttpClientFactory(EurekaJerseyClient jerseyClient, boolean allowRedirects) {
         this(
-                jerseyClient,
-                null,
-                -1,
-                Collections.singletonMap(HTTP_X_DISCOVERY_ALLOW_REDIRECT, allowRedirects ? "true" : "false")
+            jerseyClient,
+            null,
+            -1,
+            Collections.singletonMap(HTTP_X_DISCOVERY_ALLOW_REDIRECT, allowRedirects ? "true" : "false")
         );
     }
 
@@ -96,6 +96,12 @@ public class JerseyEurekaHttpClientFactory implements TransportClientFactory {
         this.cleaner = new ApacheHttpClientConnectionCleaner(this.apacheClient, connectionIdleTimeout);
     }
 
+    /**
+     * 创建和EurekaServer交互的{@link JerseyApplicationClient},专门用于Application相关
+     *
+     * @param endpoint
+     * @return
+     */
     @Override
     public EurekaHttpClient newClient(EurekaEndpoint endpoint) {
         return new JerseyApplicationClient(apacheClient, endpoint.getServiceUrl(), additionalHeaders);
@@ -111,26 +117,35 @@ public class JerseyEurekaHttpClientFactory implements TransportClientFactory {
         }
     }
 
+    /**
+     * 创建Jersey HttpClientFactory
+     *
+     * @param clientConfig
+     * @param additionalFilters
+     * @param myInstanceInfo
+     * @param clientIdentity
+     * @return
+     */
     public static JerseyEurekaHttpClientFactory create(EurekaClientConfig clientConfig,
                                                        Collection<ClientFilter> additionalFilters,
                                                        InstanceInfo myInstanceInfo,
                                                        AbstractEurekaIdentity clientIdentity) {
         JerseyEurekaHttpClientFactoryBuilder clientBuilder = newBuilder()
-                .withAdditionalFilters(additionalFilters) // 客户端附加过滤器
-                .withMyInstanceInfo(myInstanceInfo) // 应用实例
-                .withUserAgent("Java-EurekaClient") // UA
-                .withClientConfig(clientConfig)
-                .withClientIdentity(clientIdentity);
+            .withAdditionalFilters(additionalFilters) // 客户端附加过滤器
+            .withMyInstanceInfo(myInstanceInfo) // 应用实例
+            .withUserAgent("Java-EurekaClient") // UA
+            .withClientConfig(clientConfig)
+            .withClientIdentity(clientIdentity);
 
         // 设置 Client Name
         if ("true".equals(System.getProperty("com.netflix.eureka.shouldSSLConnectionsUseSystemSocketFactory"))) {
             clientBuilder.withClientName("DiscoveryClient-HTTPClient-System").withSystemSSLConfiguration();
         } else if (clientConfig.getProxyHost() != null && clientConfig.getProxyPort() != null) {
             clientBuilder.withClientName("Proxy-DiscoveryClient-HTTPClient")
-                    .withProxy(
-                            clientConfig.getProxyHost(), Integer.parseInt(clientConfig.getProxyPort()),
-                            clientConfig.getProxyUserName(), clientConfig.getProxyPassword()
-                    ); // http proxy
+                .withProxy(
+                    clientConfig.getProxyHost(), Integer.parseInt(clientConfig.getProxyPort()),
+                    clientConfig.getProxyUserName(), clientConfig.getProxyPassword()
+                ); // http proxy
         } else {
             clientBuilder.withClientName("DiscoveryClient-HTTPClient");
         }
@@ -150,7 +165,8 @@ public class JerseyEurekaHttpClientFactory implements TransportClientFactory {
      * Currently use EurekaJerseyClientBuilder. Once old transport in DiscoveryClient is removed, incorporate
      * EurekaJerseyClientBuilder here, and remove it.
      */
-    public static class JerseyEurekaHttpClientFactoryBuilder extends EurekaClientFactoryBuilder<JerseyEurekaHttpClientFactory, JerseyEurekaHttpClientFactoryBuilder> {
+    public static class JerseyEurekaHttpClientFactoryBuilder
+        extends EurekaClientFactoryBuilder<JerseyEurekaHttpClientFactory, JerseyEurekaHttpClientFactoryBuilder> {
 
         /**
          * 客户端过滤器
@@ -171,10 +187,10 @@ public class JerseyEurekaHttpClientFactory implements TransportClientFactory {
         @Override
         public JerseyEurekaHttpClientFactory build() {
             Map<String, String> additionalHeaders = new HashMap<>();
-            if (allowRedirect) { // 是否允许重定向
+            if (allowRedirect) { // 是否允许重定向,默认false
                 additionalHeaders.put(HTTP_X_DISCOVERY_ALLOW_REDIRECT, "true");
             }
-            if (EurekaAccept.compact == eurekaAccept) { // 是否紧凑的请求的数据结构，{@link EurekaAccept}
+            if (EurekaAccept.compact == eurekaAccept) { // 是否紧凑的请求的数据结构，默认full，{@link EurekaAccept}
                 additionalHeaders.put(EurekaAccept.HTTP_X_EUREKA_ACCEPT, eurekaAccept.name());
             }
 
@@ -192,24 +208,24 @@ public class JerseyEurekaHttpClientFactory implements TransportClientFactory {
          * 不使用 Http Proxy TODO 【芋艿】可能是bug，因为实际是会传递的
          *
          * @param additionalHeaders 附加请求头
-         * @param systemSSL systemSSL
+         * @param systemSSL         systemSSL
          * @return JerseyEurekaHttpClientFactory
          */
         private JerseyEurekaHttpClientFactory buildLegacy(Map<String, String> additionalHeaders, boolean systemSSL) {
             EurekaJerseyClientBuilder clientBuilder = new EurekaJerseyClientBuilder()
-                    .withClientName(clientName)
-                    // UserAgent （不同）
-                    .withUserAgent("Java-EurekaClient")
-                    // 连接时间参数
-                    .withConnectionTimeout(connectionTimeout)
-                    .withReadTimeout(readTimeout)
-                    // 连接数量参数
-                    .withMaxConnectionsPerHost(maxConnectionsPerHost)
-                    .withMaxTotalConnections(maxTotalConnections)
-                    .withConnectionIdleTimeout((int) connectionIdleTimeout)
-                    // 编解码
-                    .withEncoderWrapper(encoderWrapper)
-                    .withDecoderWrapper(decoderWrapper);
+                .withClientName(clientName)
+                // UserAgent （不同）
+                .withUserAgent("Java-EurekaClient")
+                // 连接时间参数
+                .withConnectionTimeout(connectionTimeout)  // 连接超时,5S
+                .withReadTimeout(readTimeout)              // 请求超时,8S
+                // 连接数量参数
+                .withMaxConnectionsPerHost(maxConnectionsPerHost)   // 与一个主机间的最大连接数,50
+                .withMaxTotalConnections(maxTotalConnections)       // 当前应用同时存在的最大连接数,200
+                .withConnectionIdleTimeout((int)connectionIdleTimeout)  // 连接空闲超时, 30S
+                // 编解码
+                .withEncoderWrapper(encoderWrapper)
+                .withDecoderWrapper(decoderWrapper);
 
             if (systemSSL) {
                 clientBuilder.withSystemSSLConfiguration();

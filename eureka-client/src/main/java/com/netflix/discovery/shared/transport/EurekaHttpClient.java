@@ -4,11 +4,14 @@ import com.netflix.appinfo.InstanceInfo;
 import com.netflix.appinfo.InstanceInfo.InstanceStatus;
 import com.netflix.discovery.shared.Application;
 import com.netflix.discovery.shared.Applications;
+import com.netflix.discovery.shared.transport.jersey.AbstractJerseyEurekaHttpClient;
 
 /**
  * Low level Eureka HTTP client API.
  *
  * Eureka-Server HTTP 访问客户端，定义了具体的 Eureka-Server API 调用方法 。
+ *
+ * 默认实现 ： {@link AbstractJerseyEurekaHttpClient}
  *
  * @author Tomasz Bak
  */

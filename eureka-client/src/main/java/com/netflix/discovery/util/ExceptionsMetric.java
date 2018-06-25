@@ -60,6 +60,12 @@ public class ExceptionsMetric {
         return counter;
     }
 
+    /**
+     * 提取最初的异常类名称
+     *
+     * @param ex
+     * @return
+     */
     private static String extractName(Throwable ex) {
         Throwable cause = ex;
         while (cause.getCause() != null) {
