@@ -300,14 +300,14 @@ public class Applications {
     /**
      * 混合实例
      *
-     * @param filterUpInstances     是否过滤状态仅为 {@link InstanceStatus#UP} 的 实例
-     * @param indexByRemoteRegions  是否按照Region的顺序
+     * @param filterUpInstances     是否过滤状态仅为 {@link InstanceStatus#UP} 的 实例 ，true
+     * @param indexByRemoteRegions  是否按照Region的顺序  false
      * @param remoteRegionsRegistry
      * @param clientConfig
      * @param instanceRegionChecker
      */
-    private void shuffleInstances(boolean filterUpInstances,
-                                  boolean indexByRemoteRegions,
+    private void shuffleInstances(boolean filterUpInstances,      // true
+                                  boolean indexByRemoteRegions,   // false
                                   @Nullable Map<String, Applications> remoteRegionsRegistry,
                                   @Nullable EurekaClientConfig clientConfig,
                                   @Nullable InstanceRegionChecker instanceRegionChecker) {

@@ -18,6 +18,7 @@ import org.slf4j.LoggerFactory;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.MultivaluedMap;
 import javax.ws.rs.core.Response.Status;
+
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -61,16 +62,16 @@ public abstract class AbstractJerseyEurekaHttpClient implements EurekaHttpClient
             addExtraHeaders(resourceBuilder);
             // 请求 Eureka-Server
             response = resourceBuilder
-                    .header("Accept-Encoding", "gzip") // GZIP
-                    .type(MediaType.APPLICATION_JSON_TYPE) // 请求参数格式 JSON
-                    .accept(MediaType.APPLICATION_JSON) // 响应结果格式 JSON
-                    .post(ClientResponse.class, info); // 请求参数
+                .header("Accept-Encoding", "gzip") // GZIP
+                .type(MediaType.APPLICATION_JSON_TYPE) // 请求参数格式 JSON
+                .accept(MediaType.APPLICATION_JSON) // 响应结果格式 JSON
+                .post(ClientResponse.class, info); // 请求参数
             // 创建 EurekaHttpResponse
             return anEurekaHttpResponse(response.getStatus()).headers(headersOf(response)).build();
         } finally {
             if (logger.isDebugEnabled()) {
                 logger.debug("Jersey HTTP POST {}/{} with instance {}; statusCode={}", serviceUrl, urlPath, info.getId(),
-                        response == null ? "N/A" : response.getStatus());
+                    response == null ? "N/A" : response.getStatus());
             }
             if (response != null) {
                 response.close();
@@ -103,16 +104,17 @@ public abstract class AbstractJerseyEurekaHttpClient implements EurekaHttpClient
         ClientResponse response = null;
         try {
             WebResource webResource = jerseyClient.resource(serviceUrl)
-                    .path(urlPath)
-                    .queryParam("status", info.getStatus().toString())
-                    .queryParam("lastDirtyTimestamp", info.getLastDirtyTimestamp().toString());
+                .path(urlPath)
+                .queryParam("status", info.getStatus().toString())
+                .queryParam("lastDirtyTimestamp", info.getLastDirtyTimestamp().toString());
             if (overriddenStatus != null) {
                 webResource = webResource.queryParam("overriddenstatus", overriddenStatus.name());
             }
             Builder requestBuilder = webResource.getRequestBuilder();
             addExtraHeaders(requestBuilder);
             response = requestBuilder.put(ClientResponse.class);
-            EurekaHttpResponseBuilder<InstanceInfo> eurekaResponseBuilder = anEurekaHttpResponse(response.getStatus(), InstanceInfo.class).headers(headersOf(response));
+            EurekaHttpResponseBuilder<InstanceInfo> eurekaResponseBuilder = anEurekaHttpResponse(response.getStatus(), InstanceInfo.class).headers(
+                headersOf(response));
             if (response.hasEntity()) {
                 eurekaResponseBuilder.entity(response.getEntity(InstanceInfo.class));
             }
@@ -133,10 +135,10 @@ public abstract class AbstractJerseyEurekaHttpClient implements EurekaHttpClient
         ClientResponse response = null;
         try {
             Builder requestBuilder = jerseyClient.resource(serviceUrl)
-                    .path(urlPath)
-                    .queryParam("value", newStatus.name())
-                    .queryParam("lastDirtyTimestamp", info.getLastDirtyTimestamp().toString())
-                    .getRequestBuilder();
+                .path(urlPath)
+                .queryParam("value", newStatus.name())
+                .queryParam("lastDirtyTimestamp", info.getLastDirtyTimestamp().toString())
+                .getRequestBuilder();
             addExtraHeaders(requestBuilder);
             response = requestBuilder.put(ClientResponse.class);
             return anEurekaHttpResponse(response.getStatus()).headers(headersOf(response)).build();
@@ -156,9 +158,9 @@ public abstract class AbstractJerseyEurekaHttpClient implements EurekaHttpClient
         ClientResponse response = null;
         try {
             Builder requestBuilder = jerseyClient.resource(serviceUrl)
-                    .path(urlPath)
-                    .queryParam("lastDirtyTimestamp", info.getLastDirtyTimestamp().toString())
-                    .getRequestBuilder();
+                .path(urlPath)
+                .queryParam("lastDirtyTimestamp", info.getLastDirtyTimestamp().toString())
+                .getRequestBuilder();
             addExtraHeaders(requestBuilder);
             response = requestBuilder.delete(ClientResponse.class);
             return anEurekaHttpResponse(response.getStatus()).headers(headersOf(response)).build();
@@ -172,11 +174,23 @@ public abstract class AbstractJerseyEurekaHttpClient implements EurekaHttpClient
         }
     }
 
+    /**
+     * 全量拉取
+     *
+     * @param regions
+     * @return
+     */
     @Override
     public EurekaHttpResponse<Applications> getApplications(String... regions) {
         return getApplicationsInternal("apps/", regions);
     }
 
+    /**
+     * 获取增量信息
+     *
+     * @param regions
+     * @return
+     */
     @Override
     public EurekaHttpResponse<Applications> getDelta(String... regions) {
         return getApplicationsInternal("apps/delta", regions);
@@ -210,15 +224,15 @@ public abstract class AbstractJerseyEurekaHttpClient implements EurekaHttpClient
                 applications = response.getEntity(Applications.class);
             }
             return anEurekaHttpResponse(response.getStatus(), Applications.class)
-                    .headers(headersOf(response))
-                    .entity(applications)
-                    .build();
+                .headers(headersOf(response))
+                .entity(applications)
+                .build();
         } finally {
             if (logger.isDebugEnabled()) {
                 logger.debug("Jersey HTTP GET {}/{}?{}; statusCode={}",
-                        serviceUrl, urlPath,
-                        regionsParamValue == null ? "" : "regions=" + regionsParamValue,
-                        response == null ? "N/A" : response.getStatus()
+                    serviceUrl, urlPath,
+                    regionsParamValue == null ? "" : "regions=" + regionsParamValue,
+                    response == null ? "N/A" : response.getStatus()
                 );
             }
             if (response != null) {
@@ -227,6 +241,12 @@ public abstract class AbstractJerseyEurekaHttpClient implements EurekaHttpClient
         }
     }
 
+    /**
+     * 全量拉取
+     *
+     * @param appName
+     * @return
+     */
     @Override
     public EurekaHttpResponse<Application> getApplication(String appName) {
         String urlPath = "apps/" + appName;
@@ -241,9 +261,9 @@ public abstract class AbstractJerseyEurekaHttpClient implements EurekaHttpClient
                 application = response.getEntity(Application.class);
             }
             return anEurekaHttpResponse(response.getStatus(), Application.class)
-                    .headers(headersOf(response))
-                    .entity(application)
-                    .build();
+                .headers(headersOf(response))
+                .entity(application)
+                .build();
         } finally {
             if (logger.isDebugEnabled()) {
                 logger.debug("Jersey HTTP GET {}/{}; statusCode={}", serviceUrl, urlPath, response == null ? "N/A" : response.getStatus());
@@ -276,9 +296,9 @@ public abstract class AbstractJerseyEurekaHttpClient implements EurekaHttpClient
                 infoFromPeer = response.getEntity(InstanceInfo.class);
             }
             return anEurekaHttpResponse(response.getStatus(), InstanceInfo.class)
-                    .headers(headersOf(response))
-                    .entity(infoFromPeer)
-                    .build();
+                .headers(headersOf(response))
+                .entity(infoFromPeer)
+                .build();
         } finally {
             if (logger.isDebugEnabled()) {
                 logger.debug("Jersey HTTP GET {}/{}; statusCode={}", serviceUrl, urlPath, response == null ? "N/A" : response.getStatus());
