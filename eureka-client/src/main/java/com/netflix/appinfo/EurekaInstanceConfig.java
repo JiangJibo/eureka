@@ -57,7 +57,7 @@ public interface EurekaInstanceConfig {
     /**
      * Get the name of the application to be registered with eureka.
      *
-     * 应用名
+     * 应用名, 在 {@link EurekaInstanceConfigBean#setEnvironment(...)} 方法里用spring.application.name赋值这个属性
      *
      * @return string denoting the name.
      */
@@ -179,7 +179,7 @@ public interface EurekaInstanceConfig {
      * </p>
      *
      * 虚拟主机名。
-     * 也可以叫做 VIPAddress 。
+     * 也可以叫做 VIPAddress 。  在 {@link EurekaInstanceConfigBean#setEnvironment(...)} 方法里用spring.application.name赋值这个属性
      *
      * @return the string indicating the virtual host name which the clients use
      *         to call this service.
