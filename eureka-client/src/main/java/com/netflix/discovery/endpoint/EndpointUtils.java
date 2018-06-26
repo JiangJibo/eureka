@@ -203,6 +203,13 @@ public class EndpointUtils {
 
     /**
      * 确保了相同zone的serviceUrl在 orderedUrls(LinkedHashMap) 的第一位,保证顺序
+     * 先获取"availability-zones" 里的当前region对应的zones, 然后获取第一个zone为myZone
+     * 然后从serviceUrl里先获取myZone的urls,放进集合第一位;
+     * 然后从myZone的顺序之后,依次获取zone对应的urls,存入集合
+     * 然后返回 Map<Zone, List<ServiceUrl>> serviceUrls
+     *
+     * 关键是按 availability-zones 的顺序
+     *
      * Get the list of all eureka service urls from properties file for the eureka client to talk to.
      *
      * @param clientConfig   the clientConfig to use

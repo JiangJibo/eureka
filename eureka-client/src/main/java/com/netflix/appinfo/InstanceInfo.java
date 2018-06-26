@@ -1405,7 +1405,7 @@ public class InstanceInfo {
         setIsDirty();
     }
 
-    /**
+    /** 若配置了可用zone,返回第一个; 若未配置, 返回default
      * Get the zone that a particular instance is in.
      * Note that for AWS deployments, myInfo should contain AWS dataCenterInfo which should contain
      * the AWS zone of the instance, and availZones is ignored.

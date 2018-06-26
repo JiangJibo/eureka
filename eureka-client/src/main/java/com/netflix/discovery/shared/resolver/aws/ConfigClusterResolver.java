@@ -72,12 +72,21 @@ public class ConfigClusterResolver implements ClusterResolver<AwsEndpoint> {
         return endpoints;
     }
 
+    /**
+     * 根据配置来生成EurekaServer集群
+     * 先获取"availability-zones" 里的当前region对应的zones, 然后获取第一个zone为myZone
+     * 然后从serviceUrl里先获取myZone的urls,放进集合第一位;
+     * 然后从myZone的顺序之后,依次获取zone对应的urls,存入集合
+     * 然后返回 Map<Zone, List<ServiceUrl>> serviceUrls
+     *
+     * @return
+     */
     private List<AwsEndpoint> getClusterEndpointsFromConfig() {
         // 获得 可用区,默认值 "defaultZone", 在获取zones时,只会获取到同一个Region下的zone, 也就是availZones的Region是同一个,都是当前应用的Region
         String[] availZones = clientConfig.getAvailabilityZones(clientConfig.getRegion());
-        // 获取 应用实例自己 的 可用区, 当有多个可用区是返回第一个
+        // 获取 应用实例自己 的 可用区, 当有多个可用区是返回第一个; 若未配置返回 default
         String myZone = InstanceInfo.getZone(availZones, myInstanceInfo);
-        // 获得 可用区与 serviceUrls 的映射, 返回的结果集是一个LinkedHashMap, 相同zone的urls在第一位
+        // 获得 可用区与 serviceUrls 的映射, 返回的结果集是一个LinkedHashMap
         Map<String, List<String>> serviceUrls = EndpointUtils.getServiceUrlsMapFromConfig(clientConfig, myZone, clientConfig.shouldPreferSameZoneEureka());
         // 拼装 EndPoint 集群结果, 相同zone的位于List前端
         List<AwsEndpoint> endpoints = new ArrayList<>();

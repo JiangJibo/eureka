@@ -204,7 +204,8 @@ public class AsyncResolver<T extends EurekaEndpoint> implements ClosableResolver
     }
 
 
-    /* visible for testing */ boolean doWarmUp() {
+    /* visible for testing */
+    boolean doWarmUp() {
         Future future = null;
         try {
             future = threadPoolExecutor.submit(updateTask);
