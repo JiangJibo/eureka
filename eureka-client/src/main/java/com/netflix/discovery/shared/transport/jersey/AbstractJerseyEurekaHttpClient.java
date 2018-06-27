@@ -211,7 +211,9 @@ public abstract class AbstractJerseyEurekaHttpClient implements EurekaHttpClient
         String regionsParamValue = null;
         try {
             WebResource webResource = jerseyClient.resource(serviceUrl).path(urlPath);
+            // 如果指定了从哪些Region拉取注册信息
             if (regions != null && regions.length > 0) {
+                // 用 "," 拼接Region
                 regionsParamValue = StringUtil.join(regions);
                 webResource = webResource.queryParam("regions", regionsParamValue);
             }

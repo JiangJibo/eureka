@@ -20,10 +20,11 @@ import com.netflix.appinfo.InstanceInfo;
 import java.util.List;
 
 /**
+ * 应用寻找器
  * Lookup service for finding active instances.
  *
- * @author Karthik Ranganathan, Greg Kim.
  * @param <T> for backward compatibility
+ * @author Karthik Ranganathan, Greg Kim.
  */
 public interface LookupService<T> {
 
@@ -33,7 +34,7 @@ public interface LookupService<T> {
      *
      * @param appName
      * @return a {@link Application} or null if we couldn't locate any app of
-     *         the requested appName
+     * the requested appName
      */
     Application getApplication(String appName);
 
@@ -52,7 +53,7 @@ public interface LookupService<T> {
      *
      * @param id
      * @return {@link List} of {@link InstanceInfo}s or
-     *         {@link java.util.Collections#emptyList()}
+     * {@link java.util.Collections#emptyList()}
      */
     List<InstanceInfo> getInstancesById(String id);
 
@@ -72,14 +73,12 @@ public interface LookupService<T> {
      * at that point to timeout quickly and retry the next server.
      * </p>
      *
-     * @param virtualHostname
-     *            the virtual host name that is associated to the servers.
-     * @param secure
-     *            indicates whether this is a HTTP or a HTTPS request - secure
-     *            means HTTPS.
+     * @param virtualHostname the virtual host name that is associated to the servers.
+     * @param secure          indicates whether this is a HTTP or a HTTPS request - secure
+     *                        means HTTPS.
      * @return the {@link InstanceInfo} information which contains the public
-     *         host name of the next server in line to process the request based
-     *         on the round-robin algorithm.
+     * host name of the next server in line to process the request based
+     * on the round-robin algorithm.
      * @throws java.lang.RuntimeException if the virtualHostname does not exist
      */
     InstanceInfo getNextServerFromEureka(String virtualHostname, boolean secure);

@@ -41,8 +41,8 @@ public class Pair<E1, E2> {
         this.second = second;
     }
 
-    private E1 first;
-    private E2 second;
+    private E1 first;  // key
+    private E2 second; // value
 
     public Pair(E1 first, E2 second) {
         this.first = first;

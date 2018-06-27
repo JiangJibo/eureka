@@ -143,6 +143,7 @@ public class DiscoveryClient implements EurekaClient {
      * Applications 在本地的缓存
      */
     private final AtomicReference<Applications> localRegionApps = new AtomicReference<Applications>();
+
     private final Lock fetchRegistryUpdateLock = new ReentrantLock();
     /**
      * 拉取注册信息次数
@@ -459,6 +460,7 @@ public class DiscoveryClient implements EurekaClient {
             // 【3.2.10】初始化 Eureka 网络通信相关
             eurekaTransport = new EurekaTransport();
             // 初始化和定时设置 AWSEndpoint , 也就是EurekaServer, 定期从配置信息中读取EurekaServer的URL，Region,Zone, 生成Server Endpoint
+            // 初始化HttpClient相关
             scheduleServerEndpointTask(eurekaTransport, args);
 
             // 【3.2.11】初始化 InstanceRegionChecker

@@ -16,6 +16,7 @@
 
 package com.netflix.discovery.shared.resolver.aws;
 
+import com.netflix.discovery.EurekaClientConfig;
 import com.netflix.discovery.shared.resolver.ClusterResolver;
 import com.netflix.discovery.shared.resolver.ResolverUtils;
 import org.slf4j.Logger;
@@ -44,6 +45,7 @@ public class ZoneAffinityClusterResolver implements ClusterResolver<AwsEndpoint>
     private final ClusterResolver<AwsEndpoint> delegate;
     /**
      * 应用实例的可用区
+     * {@link EurekaClientConfig#getAvailabilityZones(String)}得到的字符串, 按","拆分后的第一个zone就作为myZone
      */
     private final String myZone;
     /**
@@ -66,16 +68,14 @@ public class ZoneAffinityClusterResolver implements ClusterResolver<AwsEndpoint>
     }
 
     /**
-     * 本地可用区排前, 非本地可用区排后
-     *
      * @return
      */
     @Override
     public List<AwsEndpoint> getClusterEndpoints() {
         // 拆分成 本地的可用区和非本地的可用区的 EndPoint 集群
         List<AwsEndpoint>[] parts = ResolverUtils.splitByZone(delegate.getClusterEndpoints(), myZone);
-        List<AwsEndpoint> myZoneEndpoints = parts[0];   // 本地可用区, 也就是zone相同的
-        List<AwsEndpoint> remainingEndpoints = parts[1];  // 非本地可用区
+        List<AwsEndpoint> myZoneEndpoints = parts[0];   // myZone对应的可用区, 也就是 availabilityZones 里的第一个zone
+        List<AwsEndpoint> remainingEndpoints = parts[1];  // 非myZone对应的可用区
         // 随机打乱 EndPoint 集群并进行合并
         List<AwsEndpoint> randomizedList = randomizeAndMerge(myZoneEndpoints, remainingEndpoints);
         // 非可用区亲和，将非本地的可用区的 EndPoint 集群放在前面
@@ -90,6 +90,15 @@ public class ZoneAffinityClusterResolver implements ClusterResolver<AwsEndpoint>
         return randomizedList;
     }
 
+    /**
+     * 打乱AwsEndpoint顺序
+     * 同一个EurekaClient每次打乱得到的顺序都是一样的,不同的Client得到的顺序不同
+     * 效果：多个主机，实现对同一个 EndPoint 集群负载均衡的效果。单个主机，同一个 EndPoint 集群按照固定顺序访问
+     *
+     * @param myZoneEndpoints
+     * @param remainingEndpoints
+     * @return
+     */
     private static List<AwsEndpoint> randomizeAndMerge(List<AwsEndpoint> myZoneEndpoints, List<AwsEndpoint> remainingEndpoints) {
         if (myZoneEndpoints.isEmpty()) {
             return ResolverUtils.randomize(remainingEndpoints); // 打乱

@@ -45,7 +45,8 @@ public final class ResolverUtils {
     }
 
     /**
-     * 返回含两个元素的数组，第一个元素是zone相同的AwsEndpoint(本地可用区) ,第二个元素是不同的AwsEndpoint
+     * 按Zone拆分AwsEndpoint
+     * 返回含两个元素的数组，第一个元素是myZone相同的AwsEndpoint(本地可用区) ,第二个元素是不同的AwsEndpoint
      *
      * @param eurekaEndpoints
      * @param myZone
@@ -62,7 +63,7 @@ public final class ResolverUtils {
         List<AwsEndpoint> myZoneList = new ArrayList<>(eurekaEndpoints.size());
         List<AwsEndpoint> remainingZonesList = new ArrayList<>(eurekaEndpoints.size());
         for (AwsEndpoint endpoint : eurekaEndpoints) {
-            if (myZone.equalsIgnoreCase(endpoint.getZone())) { // 是否为本地可用区
+            if (myZone.equalsIgnoreCase(endpoint.getZone())) { // 是否为myZone对应的AwsEndpoint
                 myZoneList.add(endpoint);
             } else {
                 remainingZonesList.add(endpoint);
@@ -80,6 +81,9 @@ public final class ResolverUtils {
     }
 
     /**
+     * 同一个EurekaClient每次打乱得到的顺序都是一样的,不同的Client得到的顺序不同
+     * 效果：多个主机，实现对同一个 EndPoint 集群负载均衡的效果。单个主机，同一个 EndPoint 集群按照固定顺序访问
+     *
      * Randomize server list using local IPv4 address hash as a seed.
      *
      * @return a copy of the original list with elements in the random order
@@ -90,6 +94,8 @@ public final class ResolverUtils {
         if (randomList.size() < 2) {
             return randomList;
         }
+        // 随机数种子作用：相同seed的Random对象, next()次数相同, 得到的数值都是一样的
+        // 分析： 虽然说是随机数发生器，但是还是按照某种算法一步一步执行下去的，种子数一定算法一样那么同一时刻的产生的数值当然该一样了！！
         // 以本地IP为随机种子，有如下好处：
         // 多个主机，实现对同一个 EndPoint 集群负载均衡的效果。
         // 单个主机，同一个 EndPoint 集群按照固定顺序访问。Eureka-Server 不是强一致性的注册中心，Eureka-Client 对同一个 Eureka-Server 拉取注册信息，保证两者之间增量同步的一致性。
