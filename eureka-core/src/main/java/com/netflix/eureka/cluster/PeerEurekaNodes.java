@@ -13,6 +13,7 @@ import org.slf4j.LoggerFactory;
 
 import javax.inject.Inject;
 import javax.inject.Singleton;
+
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.*;
@@ -70,11 +71,11 @@ public class PeerEurekaNodes {
 
     @Inject
     public PeerEurekaNodes(
-            PeerAwareInstanceRegistry registry,
-            EurekaServerConfig serverConfig,
-            EurekaClientConfig clientConfig,
-            ServerCodecs serverCodecs,
-            ApplicationInfoManager applicationInfoManager) {
+        PeerAwareInstanceRegistry registry,
+        EurekaServerConfig serverConfig,
+        EurekaClientConfig clientConfig,
+        ServerCodecs serverCodecs,
+        ApplicationInfoManager applicationInfoManager) {
         this.registry = registry;
         this.serverConfig = serverConfig;
         this.clientConfig = clientConfig;
@@ -89,22 +90,25 @@ public class PeerEurekaNodes {
     public List<PeerEurekaNode> getPeerEurekaNodes() {
         return peerEurekaNodes;
     }
-    
+
     public int getMinNumberOfAvailablePeers() {
         return serverConfig.getHealthStatusMinNumberOfAvailablePeers();
     }
 
+    /**
+     * 启动 Eureka-Server 集群节点集合（复制）
+     */
     public void start() {
         // 创建 定时任务服务
         taskExecutor = Executors.newSingleThreadScheduledExecutor(
-                new ThreadFactory() {
-                    @Override
-                    public Thread newThread(Runnable r) {
-                        Thread thread = new Thread(r, "Eureka-PeerNodesUpdater");
-                        thread.setDaemon(true);
-                        return thread;
-                    }
+            new ThreadFactory() {
+                @Override
+                public Thread newThread(Runnable r) {
+                    Thread thread = new Thread(r, "Eureka-PeerNodesUpdater");
+                    thread.setDaemon(true);
+                    return thread;
                 }
+            }
         );
         try {
             // 初始化 集群节点信息
@@ -122,10 +126,10 @@ public class PeerEurekaNodes {
                 }
             };
             taskExecutor.scheduleWithFixedDelay(
-                    peersUpdateTask,
-                    serverConfig.getPeerEurekaNodesUpdateIntervalMs(),
-                    serverConfig.getPeerEurekaNodesUpdateIntervalMs(),
-                    TimeUnit.MILLISECONDS
+                peersUpdateTask,
+                serverConfig.getPeerEurekaNodesUpdateIntervalMs(),
+                serverConfig.getPeerEurekaNodesUpdateIntervalMs(),
+                TimeUnit.MILLISECONDS
             );
         } catch (Exception e) {
             throw new IllegalStateException(e);
@@ -149,7 +153,7 @@ public class PeerEurekaNodes {
     }
 
     /**
-     * Resolve peer URLs.
+     * Resolve peer URLs. 获取Server集群的所有serviceUrl,不包括自身
      *
      * @return peer URLs with node's own URL filtered out
      */
@@ -157,6 +161,7 @@ public class PeerEurekaNodes {
         // 获得 Eureka-Server 集群服务地址数组
         InstanceInfo myInfo = applicationInfoManager.getInfo();
         String zone = InstanceInfo.getZone(clientConfig.getAvailabilityZones(clientConfig.getRegion()), myInfo);
+        // 获取相同Region下的所有serviceUrl
         List<String> replicaUrls = EndpointUtils.getDiscoveryServiceUrls(clientConfig, zone, new EndpointUtils.InstanceInfoBasedUrlRandomizer(myInfo));
 
         // 移除自己（避免向自己同步）
@@ -183,7 +188,7 @@ public class PeerEurekaNodes {
             return;
         }
 
-        // 计算 新增的集群节点地址
+        // 计算 新增的集群节点地址, 配置信息可能是会变的,比如放git上; 集群配置可能动态新增或者减少
         Set<String> toShutdown = new HashSet<>(peerEurekaNodeUrls);
         toShutdown.removeAll(newPeerUrls);
 
@@ -203,6 +208,7 @@ public class PeerEurekaNodes {
             int i = 0;
             while (i < newNodeList.size()) {
                 PeerEurekaNode eurekaNode = newNodeList.get(i);
+                // 关闭不在本次配置里的集群节点
                 if (toShutdown.contains(eurekaNode.getServiceUrl())) {
                     newNodeList.remove(i);
                     eurekaNode.shutDown(); // 关闭
@@ -236,16 +242,15 @@ public class PeerEurekaNodes {
     }
 
     /**
+     * @param url the service url of the replica node that the check is made.
+     * @return true, if the url represents the current node which is trying to
+     * replicate, false otherwise.
      * @deprecated 2016-06-27 use instance version of {@link #isThisMyUrl(String)}
      *
      * Checks if the given service url contains the current host which is trying
      * to replicate. Only after the EIP binding is done the host has a chance to
      * identify itself in the list of replica nodes and needs to take itself out
      * of replication traffic.
-     *
-     * @param url the service url of the replica node that the check is made.
-     * @return true, if the url represents the current node which is trying to
-     *         replicate, false otherwise.
      */
     public static boolean isThisMe(String url) {
         InstanceInfo myInfo = ApplicationInfoManager.getInstance().getInfo();
@@ -261,16 +266,16 @@ public class PeerEurekaNodes {
      *
      * @param url the service url of the replica node that the check is made.
      * @return true, if the url represents the current node which is trying to
-     *         replicate, false otherwise.
+     * replicate, false otherwise.
      */
     public boolean isThisMyUrl(String url) {
         return isInstanceURL(url, applicationInfoManager.getInfo());
     }
-    
+
     /**
      * Checks if the given service url matches the supplied instance
      *
-     * @param url the service url of the replica node that the check is made.
+     * @param url      the service url of the replica node that the check is made.
      * @param instance the instance to check the service url against
      * @return true, if the url represents the supplied instance, false otherwise.
      */

@@ -25,6 +25,7 @@ import org.slf4j.LoggerFactory;
 
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response.Status;
+
 import java.net.InetAddress;
 import java.net.MalformedURLException;
 import java.net.URL;
@@ -63,9 +64,9 @@ public class JerseyReplicationClient extends AbstractJerseyEurekaHttpClient impl
         ClientResponse response = null;
         try {
             WebResource webResource = jerseyClient.getClient().resource(serviceUrl)
-                    .path(urlPath)
-                    .queryParam("status", info.getStatus().toString())
-                    .queryParam("lastDirtyTimestamp", info.getLastDirtyTimestamp().toString());
+                .path(urlPath)
+                .queryParam("status", info.getStatus().toString())
+                .queryParam("lastDirtyTimestamp", info.getLastDirtyTimestamp().toString());
             if (overriddenStatus != null) {
                 webResource = webResource.queryParam("overriddenstatus", overriddenStatus.name());
             }
@@ -93,10 +94,10 @@ public class JerseyReplicationClient extends AbstractJerseyEurekaHttpClient impl
         try {
             String urlPath = "asg/" + asgName + "/status";
             response = jerseyApacheClient.resource(serviceUrl)
-                    .path(urlPath)
-                    .queryParam("value", newStatus.name())
-                    .header(PeerEurekaNode.HEADER_REPLICATION, "true")
-                    .put(ClientResponse.class);
+                .path(urlPath)
+                .queryParam("value", newStatus.name())
+                .header(PeerEurekaNode.HEADER_REPLICATION, "true")
+                .put(ClientResponse.class);
             return EurekaHttpResponse.status(response.getStatus());
         } finally {
             if (response != null) {
@@ -110,10 +111,10 @@ public class JerseyReplicationClient extends AbstractJerseyEurekaHttpClient impl
         ClientResponse response = null;
         try {
             response = jerseyApacheClient.resource(serviceUrl)
-                    .path(PeerEurekaNode.BATCH_URL_PATH)
-                    .accept(MediaType.APPLICATION_JSON_TYPE)
-                    .type(MediaType.APPLICATION_JSON_TYPE)
-                    .post(ClientResponse.class, replicationList);
+                .path(PeerEurekaNode.BATCH_URL_PATH)
+                .accept(MediaType.APPLICATION_JSON_TYPE)
+                .type(MediaType.APPLICATION_JSON_TYPE)
+                .post(ClientResponse.class, replicationList);
             if (!isSuccess(response.getStatus())) {
                 return anEurekaHttpResponse(response.getStatus(), ReplicationListResponse.class).build();
             }
@@ -132,6 +133,14 @@ public class JerseyReplicationClient extends AbstractJerseyEurekaHttpClient impl
         jerseyClient.destroyResources();
     }
 
+    /**
+     * 创建备份的HttpClient
+     *
+     * @param config
+     * @param serverCodecs
+     * @param serviceUrl
+     * @return
+     */
     public static JerseyReplicationClient createReplicationClient(EurekaServerConfig config, ServerCodecs serverCodecs, String serviceUrl) {
         String name = JerseyReplicationClient.class.getSimpleName() + ": " + serviceUrl + "apps/: ";
         EurekaJerseyClient jerseyClient;
@@ -147,19 +156,19 @@ public class JerseyReplicationClient extends AbstractJerseyEurekaHttpClient impl
             // 创建 EurekaJerseyClientBuilder
             String jerseyClientName = "Discovery-PeerNodeClient-" + hostname;
             EurekaJerseyClientBuilder clientBuilder = new EurekaJerseyClientBuilder()
-                    .withClientName(jerseyClientName)
-                    .withUserAgent("Java-EurekaClient-Replication")
-                    .withEncoderWrapper(serverCodecs.getFullJsonCodec())
-                    .withDecoderWrapper(serverCodecs.getFullJsonCodec())
-                    .withConnectionTimeout(config.getPeerNodeConnectTimeoutMs())
-                    .withReadTimeout(config.getPeerNodeReadTimeoutMs())
-                    .withMaxConnectionsPerHost(config.getPeerNodeTotalConnectionsPerHost())
-                    .withMaxTotalConnections(config.getPeerNodeTotalConnections())
-                    .withConnectionIdleTimeout(config.getPeerNodeConnectionIdleTimeoutSeconds());
+                .withClientName(jerseyClientName)
+                .withUserAgent("Java-EurekaClient-Replication")
+                .withEncoderWrapper(serverCodecs.getFullJsonCodec())
+                .withDecoderWrapper(serverCodecs.getFullJsonCodec())
+                .withConnectionTimeout(config.getPeerNodeConnectTimeoutMs())
+                .withReadTimeout(config.getPeerNodeReadTimeoutMs())
+                .withMaxConnectionsPerHost(config.getPeerNodeTotalConnectionsPerHost())
+                .withMaxTotalConnections(config.getPeerNodeTotalConnections())
+                .withConnectionIdleTimeout(config.getPeerNodeConnectionIdleTimeoutSeconds());
 
             // SSL
             if (serviceUrl.startsWith("https://") &&
-                    "true".equals(System.getProperty("com.netflix.eureka.shouldSSLConnectionsUseSystemSocketFactory"))) {
+                "true".equals(System.getProperty("com.netflix.eureka.shouldSSLConnectionsUseSystemSocketFactory"))) {
                 clientBuilder.withSystemSSLConfiguration();
             }
 

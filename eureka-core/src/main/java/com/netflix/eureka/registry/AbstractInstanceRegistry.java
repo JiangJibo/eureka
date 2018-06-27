@@ -250,6 +250,7 @@ public abstract class AbstractInstanceRegistry implements InstanceRegistry {
      *
      * @see com.netflix.eureka.lease.LeaseManager#register(java.lang.Object, int, boolean)
      */
+    @Override
     public void register(InstanceInfo registrant, int leaseDuration, boolean isReplication) {
         try {
             // 获取读锁
