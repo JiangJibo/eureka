@@ -16,10 +16,13 @@ public class FirstMatchWinsCompositeRule implements InstanceStatusOverrideRule {
 
     /**
      * 复合规则集合
+     * {@link DownOrStartingRule} : 若拉取的InstanceInfo状态是 DOWN 和 STARTING, 则匹配
+     * {@link OverrideExistsRule}
+     * {@link LeaseExistsRule}
      */
     private final InstanceStatusOverrideRule[] rules;
     /**
-     * 默认规则
+     * 默认规则 {@link AlwaysMatchInstanceStatusRule}
      */
     private final InstanceStatusOverrideRule defaultRule;
     private final String compositeRuleName;
@@ -28,7 +31,7 @@ public class FirstMatchWinsCompositeRule implements InstanceStatusOverrideRule {
         this.rules = rules;
         this.defaultRule = new AlwaysMatchInstanceStatusRule();
         // Let's build up and "cache" the rule name to be used by toString();
-        List<String> ruleNames = new ArrayList<>(rules.length+1);
+        List<String> ruleNames = new ArrayList<>(rules.length + 1);
         for (int i = 0; i < rules.length; ++i) {
             ruleNames.add(rules[i].toString());
         }
@@ -36,6 +39,12 @@ public class FirstMatchWinsCompositeRule implements InstanceStatusOverrideRule {
         compositeRuleName = ruleNames.toString();
     }
 
+    /**
+     * @param instanceInfo  The instance info whose status we care about. 关注状态的应用实例对象
+     * @param existingLease Does the instance have an existing lease already? If so let's consider that. 已存在的租约
+     * @param isReplication When overriding consider if we are under a replication mode from other servers. 是否是 Eureka-Server 发起的请求
+     * @return
+     */
     @Override
     public StatusOverrideResult apply(InstanceInfo instanceInfo,
                                       Lease<InstanceInfo> existingLease,

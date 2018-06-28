@@ -195,6 +195,7 @@ public class PeerAwareInstanceRegistryImpl extends AbstractInstanceRegistry impl
      * Populates the registry information from a peer eureka node. This
      * operation fails over to other nodes until the list is exhausted if the
      * communication fails.
+     *
      * @see com.netflix.eureka.EurekaBootStrap#initEurekaServerContext()
      */
     @Override
@@ -404,7 +405,7 @@ public class PeerAwareInstanceRegistryImpl extends AbstractInstanceRegistry impl
      */
     @Override
     public void register(final InstanceInfo info, final boolean isReplication) {
-        // 租约过期时间
+        // 租约过期时间 , 默认90S
         int leaseDuration = Lease.DEFAULT_DURATION_IN_SECS;
         if (info.getLeaseInfo() != null && info.getLeaseInfo().getDurationInSecs() > 0) {
             leaseDuration = info.getLeaseInfo().getDurationInSecs();
@@ -619,6 +620,7 @@ public class PeerAwareInstanceRegistryImpl extends AbstractInstanceRegistry impl
     }
 
     /**
+     * 将Eureka Server Node 的操作同步至集群的其他节点
      * Replicates all eureka actions to peer eureka nodes except for replication
      * traffic to this node.
      */

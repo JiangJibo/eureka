@@ -22,6 +22,7 @@ public class DownOrStartingRule implements InstanceStatusOverrideRule {
         // the client says. The same is the case with replica as well.
         // The OUT_OF_SERVICE from the client or replica needs to be confirmed as well since the service may be
         // currently in SERVICE
+        // 拉取到的注册信息非 UP , 非 OUT_OF_SERVICE , 也就是 DOWN 和 STARTING
         if ((!InstanceInfo.InstanceStatus.UP.equals(instanceInfo.getStatus()))
                 && (!InstanceInfo.InstanceStatus.OUT_OF_SERVICE.equals(instanceInfo.getStatus()))) {
             logger.debug("Trusting the instance status {} from replica or instance for instance {}",

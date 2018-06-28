@@ -351,8 +351,7 @@ public class InstanceInfo {
     public enum InstanceStatus {
         UP, // Ready to receive traffic
         DOWN, // Do not send traffic- healthcheck callback failed
-        STARTING, // Just about starting- initializations to be done - do not
-        // send traffic
+        STARTING, // Just about starting- initializations to be done - do not send traffic
         OUT_OF_SERVICE, // Intentionally shutdown for traffic
         UNKNOWN;
 

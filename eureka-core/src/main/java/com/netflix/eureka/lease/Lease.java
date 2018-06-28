@@ -77,7 +77,7 @@ public class Lease<T> {
     // Make it volatile so that the expiration task would see this quicker
     private volatile long lastUpdateTimestamp;
     /**
-     * 租约持续时长，单位：毫秒
+     * 租约持续时长，单位：毫秒 90*1000
      */
     private long duration;
 

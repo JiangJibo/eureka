@@ -89,9 +89,9 @@ public abstract class AbstractInstanceRegistry implements InstanceRegistry {
 
     // CircularQueues here for debugging/statistics purposes only
     /**
-     * 最近注册的调试队列
+     * 最近注册的队列
      * key ：添加时的时间戳
-     * value ：字符串 = 应用名(应用实例信息编号)
+     * value ：字符串 = 应用名(应用实例信息编号)  appName(id)
      */
     private final CircularQueue<Pair<Long, String>> recentRegisteredQueue;
     /**
@@ -247,6 +247,7 @@ public abstract class AbstractInstanceRegistry implements InstanceRegistry {
 
     /**
      * Registers a new instance with a given duration.
+     * leaseDuration : 租约过期时间90S
      *
      * @see com.netflix.eureka.lease.LeaseManager#register(java.lang.Object, int, boolean)
      */
@@ -275,6 +276,7 @@ public abstract class AbstractInstanceRegistry implements InstanceRegistry {
 
                 // this is a > instead of a >= because if the timestamps are equal, we still take the remote transmitted
                 // InstanceInfo instead of the server local copy.
+                // 新拉取的InstanceInfo的最后脏时间比持有的更早, 也就是说最新拉取的InstanceInfo是更老的信息, 放弃更新持有的InstanceInfo
                 if (existingLastDirtyTimestamp > registrationLastDirtyTimestamp) {
                     logger.warn("There is an existing lease and the existing lease's dirty timestamp {} is greater" +
                         " than the one that is being registered {}", existingLastDirtyTimestamp, registrationLastDirtyTimestamp);
@@ -298,12 +300,13 @@ public abstract class AbstractInstanceRegistry implements InstanceRegistry {
             }
             // 创建 租约
             Lease<InstanceInfo> lease = new Lease<InstanceInfo>(registrant, leaseDuration);
-            if (existingLease != null) { // 若租约已存在，设置 租约的开始服务的时间戳
+            // 若租约已存在，设置 租约的开始服务的时间戳
+            if (existingLease != null) {
                 lease.setServiceUpTimestamp(existingLease.getServiceUpTimestamp());
             }
             // 添加到 租约映射
             gMap.put(registrant.getId(), lease);
-            // 添加到 最近注册的调试队列
+            // 添加到 最近注册的队列
             synchronized (recentRegisteredQueue) {
                 recentRegisteredQueue.add(new Pair<Long, String>(
                     System.currentTimeMillis(),
