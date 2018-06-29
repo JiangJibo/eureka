@@ -24,6 +24,8 @@ import java.util.concurrent.atomic.AtomicLong;
 
 /**
  * Utility class for getting a count in last X milliseconds.
+ * 当前这个类仅仅用来计算续约次数
+ * 每隔一分钟更新续约此时, 根据当前的续约次数和上一分钟的续约次数来判断一分钟内的续约次数是否低于阈值
  *
  * @author Karthik Ranganathan,Greg Kim
  */
@@ -31,15 +33,15 @@ public class MeasuredRate {
 
     private static final Logger logger = LoggerFactory.getLogger(MeasuredRate.class);
     /**
-     * 上一个间隔次数
+     * 上一分钟内续约次数
      */
     private final AtomicLong lastBucket = new AtomicLong(0);
     /**
-     * 当前间隔次数
+     * 当前这分钟内续约次数
      */
     private final AtomicLong currentBucket = new AtomicLong(0);
     /**
-     * 间隔
+     * 间隔, 默认60S
      */
     private final long sampleInterval;
     /**
@@ -60,6 +62,7 @@ public class MeasuredRate {
 
     public synchronized void start() {
         if (!isActive) {
+            // 每隔一分钟执行一次定时任务, 更新最新的总的续约次数, 这样就能计算一分钟内续约的次数, 以此来判断续约次数是否低于阈值
             timer.schedule(new TimerTask() {
 
                 @Override

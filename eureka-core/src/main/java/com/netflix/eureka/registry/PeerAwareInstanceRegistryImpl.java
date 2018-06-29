@@ -191,7 +191,7 @@ public class PeerAwareInstanceRegistryImpl extends AbstractInstanceRegistry impl
     }
 
     /**
-     * 从其他Server Endpoint 同步注册信息
+     * 从其他Server Endpoint 同步注册信息, 返回同步的InstanceInfo的个数
      * Populates the registry information from a peer eureka node. This
      * operation fails over to other nodes until the list is exhausted if the
      * communication fails.
@@ -235,9 +235,11 @@ public class PeerAwareInstanceRegistryImpl extends AbstractInstanceRegistry impl
     @Override
     public void openForTraffic(ApplicationInfoManager applicationInfoManager, int count) {
         // Renewals happen every 30 seconds and for a minute it should be a factor of 2.
+        // 续约每30S一次,所以期望的每分钟续约次数为： InstanceInfo个数 * 2
         this.expectedNumberOfRenewsPerMin = count * 2;
-        this.numberOfRenewsPerMinThreshold =
-            (int)(this.expectedNumberOfRenewsPerMin * serverConfig.getRenewalPercentThreshold());
+        // 续约次数阈值默认0.85, 也就是总的续约次数*0.85; 当每分钟续约此时低于此值时, EurekaServer进入自我保护模式, 可能此节点网络有问题,不再删除续约失效的InstanceInfo
+        this.numberOfRenewsPerMinThreshold = (int)(this.expectedNumberOfRenewsPerMin * serverConfig.getRenewalPercentThreshold());
+
         logger.info("Got " + count + " instances from neighboring DS node");
         logger.info("Renew threshold is: " + numberOfRenewsPerMinThreshold);
         // 设置启动时间

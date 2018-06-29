@@ -139,11 +139,12 @@ public abstract class AbstractInstanceRegistry implements InstanceRegistry {
 
     protected String[] allKnownRemoteRegions = EMPTY_STR_ARRAY;
     /**
-     * 期望最小每分钟续约次数
+     * 期望最小每分钟续约次数, 默认为期望总数*0.85, 阈值是0.85
+     * 当每分钟续约此时低于此值时, EurekaServer进入自我保护模式, 可能此节点网络有问题,不再删除续约失效的InstanceInfo
      */
     protected volatile int numberOfRenewsPerMinThreshold;
     /**
-     * 期望最大每分钟续约次数
+     * 期望最大每分钟续约次数, 默认InstanceInfo个数 * 2
      */
     protected volatile int expectedNumberOfRenewsPerMin;
 
@@ -737,14 +738,16 @@ public abstract class AbstractInstanceRegistry implements InstanceRegistry {
             }
         }
 
-        // 计算 最大允许清理租约数量
+        // 计算 最大允许清理registry信息数量
         // To compensate for GC pauses or drifting local time, we need to use current registry size as a base for
         // triggering self-preservation. Without that we would wipe out full registry.
         int registrySize = (int)getLocalRegistrySize();
+        // registrySize * 0.85
         int registrySizeThreshold = (int)(registrySize * serverConfig.getRenewalPercentThreshold());
+        // 清理数量限制： (1-0.85) * registrySize , 也就是一次最多清理15%的registry信息
         int evictionLimit = registrySize - registrySizeThreshold;
 
-        // 计算 清理租约数量
+        // 计算 清理租约数量, 如果超过15%,那么取15%
         int toEvict = Math.min(expiredLeases.size(), evictionLimit);
         if (toEvict > 0) {
             logger.info("Evicting {} items (expired={}, evictionLimit={})", toEvict, expiredLeases.size(), evictionLimit);
@@ -752,7 +755,7 @@ public abstract class AbstractInstanceRegistry implements InstanceRegistry {
             // 逐个过期
             Random random = new Random(System.currentTimeMillis());
             for (int i = 0; i < toEvict; i++) {
-                // Pick a random item (Knuth shuffle algorithm)
+                // Pick a random item (Knuth shuffle algorithm), 洗牌算法
                 int next = i + random.nextInt(expiredLeases.size() - i);
                 Collections.swap(expiredLeases, i, next);
                 Lease<InstanceInfo> lease = expiredLeases.get(i);
@@ -1366,12 +1369,14 @@ public abstract class AbstractInstanceRegistry implements InstanceRegistry {
     }
 
     protected void postInit() {
+        // 启动每分钟续约计数器
         renewsLastMin.start();
         // 初始化 清理租约过期任务
         if (evictionTaskRef.get() != null) {
             evictionTaskRef.get().cancel();
         }
         evictionTaskRef.set(new EvictionTask());
+        // 每隔60S执行一次InstanceInfo回收任务
         evictionTimer.schedule(evictionTaskRef.get(),
             serverConfig.getEvictionIntervalTimerInMs(),
             serverConfig.getEvictionIntervalTimerInMs());
@@ -1396,17 +1401,18 @@ public abstract class AbstractInstanceRegistry implements InstanceRegistry {
     /**
      * 租约过期任务
      */
-    /* visible for testing */ class EvictionTask extends TimerTask {
+    /* visible for testing */
+    class EvictionTask extends TimerTask {
 
         /**
-         * 最后任务执行时间
+         * 上一次执行清理任务的时间
          */
         private final AtomicLong lastExecutionNanosRef = new AtomicLong(0L);
 
         @Override
         public void run() {
             try {
-                // 获取 补偿时间毫秒数
+                // 获取 补偿时间毫秒数, 可能这次
                 long compensationTimeMs = getCompensationTimeMs();
                 logger.info("Running the evict task with compensationTime {}ms", compensationTimeMs);
                 // 清理过期租约逻辑
@@ -1428,8 +1434,11 @@ public abstract class AbstractInstanceRegistry implements InstanceRegistry {
             if (lastNanos == 0L) {
                 return 0L;
             }
+            // 此次执行与上次执行的时间差
             long elapsedMs = TimeUnit.NANOSECONDS.toMillis(currNanos - lastNanos);
+            // 查看时间间隔是否比60S大
             long compensationTime = elapsedMs - serverConfig.getEvictionIntervalTimerInMs();
+            // 如果未超过60S, 返回; 否则返回超过的时间差
             return compensationTime <= 0L ? 0L : compensationTime;
         }
 
