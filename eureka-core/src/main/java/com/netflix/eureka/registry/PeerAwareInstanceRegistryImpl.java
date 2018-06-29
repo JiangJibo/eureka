@@ -341,6 +341,7 @@ public class PeerAwareInstanceRegistryImpl extends AbstractInstanceRegistry impl
     @Override
     public boolean shouldAllowAccess(boolean remoteRegionRequired) {
         if (this.peerInstancesTransferEmptyOnStartup) {
+            // 当前Server是否启动超过5分钟, 如果未超过,那么不允许从其他Region的Server拉取消息
             if (!(System.currentTimeMillis() > this.startupTime + serverConfig.getWaitTimeInMsWhenSyncEmpty())) {
                 return false;
             }

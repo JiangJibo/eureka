@@ -107,12 +107,13 @@ public class ApplicationsResource {
                                   @HeaderParam(EurekaAccept.HTTP_X_EUREKA_ACCEPT) String eurekaAccept,
                                   @Context UriInfo uriInfo,
                                   @Nullable @QueryParam("regions") String regionsStr) {
-        // TODO[0009]：RemoteRegionRegistry
+        // Client是否配置了从哪些Region拉取InstanceInfo
         boolean isRemoteRegionRequested = null != regionsStr && !regionsStr.isEmpty();
         String[] regions = null;
         if (!isRemoteRegionRequested) {
             EurekaMonitors.GET_ALL.increment();
         } else {
+            // 拆分指定的Region
             regions = regionsStr.toLowerCase().split(",");
             Arrays.sort(regions); // So we don't have different caches for same regions queried in different order.
             EurekaMonitors.GET_ALL_WITH_REMOTE_REGIONS.increment();
