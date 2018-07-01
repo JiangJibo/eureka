@@ -30,6 +30,7 @@ import javax.ws.rs.core.MultivaluedMap;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.Response.Status;
 import javax.ws.rs.core.UriInfo;
+
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -41,18 +42,17 @@ import java.util.concurrent.ConcurrentHashMap;
  * A <em>jersey</em> resource that handles operations for a particular instance.
  *
  * @author Karthik Ranganathan, Greg Kim
- *
  */
 @Produces({"application/xml", "application/json"})
 public class InstanceResource {
+
     private static final Logger logger = LoggerFactory
-            .getLogger(InstanceResource.class);
+        .getLogger(InstanceResource.class);
 
     private final PeerAwareInstanceRegistry registry;
     private final EurekaServerConfig serverConfig;
     private final String id;
     private final ApplicationResource app;
-
 
     InstanceResource(ApplicationResource app, String id, EurekaServerConfig serverConfig, PeerAwareInstanceRegistry registry) {
         this.app = app;
@@ -66,12 +66,12 @@ public class InstanceResource {
      * {@link InstanceInfo}.
      *
      * @return response containing information about the the instance's
-     *         {@link InstanceInfo}.
+     * {@link InstanceInfo}.
      */
     @GET
     public Response getInstanceInfo() {
         InstanceInfo appInfo = registry
-                .getInstanceByAppAndId(app.getName(), id);
+            .getInstanceByAppAndId(app.getName(), id);
         if (appInfo != null) {
             logger.debug("Found: {} - {}", app.getName(), id);
             return Response.ok(appInfo).build();
@@ -84,24 +84,20 @@ public class InstanceResource {
     /**
      * A put request for renewing lease from a client instance.
      *
-     * @param isReplication
-     *            a header parameter containing information whether this is
-     *            replicated from other nodes.
-     * @param overriddenStatus
-     *            overridden status if any.
-     * @param status
-     *            the {@link InstanceStatus} of the instance.
-     * @param lastDirtyTimestamp
-     *            last timestamp when this instance information was updated.
+     * @param isReplication      a header parameter containing information whether this is
+     *                           replicated from other nodes.
+     * @param overriddenStatus   overridden status if any.
+     * @param status             the {@link InstanceStatus} of the instance.
+     * @param lastDirtyTimestamp last timestamp when this instance information was updated.
      * @return response indicating whether the operation was a success or
-     *         failure.
+     * failure.
      */
     @PUT
     public Response renewLease(
-            @HeaderParam(PeerEurekaNode.HEADER_REPLICATION) String isReplication,
-            @QueryParam("overriddenstatus") String overriddenStatus,
-            @QueryParam("status") String status,
-            @QueryParam("lastDirtyTimestamp") String lastDirtyTimestamp) {
+        @HeaderParam(PeerEurekaNode.HEADER_REPLICATION) String isReplication,
+        @QueryParam("overriddenstatus") String overriddenStatus,
+        @QueryParam("status") String status,
+        @QueryParam("lastDirtyTimestamp") String lastDirtyTimestamp) {
         boolean isFromReplicaNode = "true".equals(isReplication);
         // 续租
         boolean isSuccess = registry.renew(app.getName(), id, isFromReplicaNode);
@@ -118,12 +114,13 @@ public class InstanceResource {
         // instance might have changed some value
         Response response = null;
         if (lastDirtyTimestamp != null && serverConfig.shouldSyncWhenTimestampDiffers()) {
+
+            // 如果Client的InstanceInfo发生改变, isDirty, 且最新的currentDirtyTime != lastDirtyTime , 返回404, 需要Client重新注册
             response = this.validateDirtyTimestamp(Long.valueOf(lastDirtyTimestamp), isFromReplicaNode);
+
             // Store the overridden status since the validation found out the node that replicates wins
-            if (response.getStatus() == Response.Status.NOT_FOUND.getStatusCode()
-                    && (overriddenStatus != null)
-                    && !(InstanceStatus.UNKNOWN.name().equals(overriddenStatus))
-                    && isFromReplicaNode) {
+            if (response.getStatus() == Response.Status.NOT_FOUND.getStatusCode() && (overriddenStatus != null)
+                && !(InstanceStatus.UNKNOWN.name().equals(overriddenStatus)) && isFromReplicaNode) {
                 registry.storeOverriddenStatusIfRequired(app.getAppName(), id, InstanceStatus.valueOf(overriddenStatus));
             }
         } else { // 成功
@@ -143,22 +140,19 @@ public class InstanceResource {
      * receiving traffic.
      * </p>
      *
-     * @param newStatus
-     *            the new status of the instance.
-     * @param isReplication
-     *            a header parameter containing information whether this is
-     *            replicated from other nodes.
-     * @param lastDirtyTimestamp
-     *            last timestamp when this instance information was updated.
+     * @param newStatus          the new status of the instance.
+     * @param isReplication      a header parameter containing information whether this is
+     *                           replicated from other nodes.
+     * @param lastDirtyTimestamp last timestamp when this instance information was updated.
      * @return response indicating whether the operation was a success or
-     *         failure.
+     * failure.
      */
     @PUT
     @Path("status")
     public Response statusUpdate(
-            @QueryParam("value") String newStatus,
-            @HeaderParam(PeerEurekaNode.HEADER_REPLICATION) String isReplication,
-            @QueryParam("lastDirtyTimestamp") String lastDirtyTimestamp) {
+        @QueryParam("value") String newStatus,
+        @HeaderParam(PeerEurekaNode.HEADER_REPLICATION) String isReplication,
+        @QueryParam("lastDirtyTimestamp") String lastDirtyTimestamp) {
         try {
             // 应用实例不存在
             if (registry.getInstanceByAppAndId(app.getName(), id) == null) {
@@ -168,22 +162,22 @@ public class InstanceResource {
 
             // 覆盖状态更新
             boolean isSuccess = registry.statusUpdate(app.getName(), id,
-                    InstanceStatus.valueOf(newStatus), lastDirtyTimestamp,
-                    "true".equals(isReplication));
+                InstanceStatus.valueOf(newStatus), lastDirtyTimestamp,
+                "true".equals(isReplication));
 
             // 返回结果
             if (isSuccess) {
                 logger.info("Status updated: " + app.getName() + " - " + id
-                        + " - " + newStatus);
+                    + " - " + newStatus);
                 return Response.ok().build();
             } else {
                 logger.warn("Unable to update status: " + app.getName() + " - "
-                        + id + " - " + newStatus);
+                    + id + " - " + newStatus);
                 return Response.serverError().build();
             }
         } catch (Throwable e) {
             logger.error("Error updating instance {} for status {}", id,
-                    newStatus);
+                newStatus);
             return Response.serverError().build();
         }
     }
@@ -192,20 +186,18 @@ public class InstanceResource {
      * Removes status override for an instance, set with
      * {@link #statusUpdate(String, String, String)}.
      *
-     * @param isReplication
-     *            a header parameter containing information whether this is
-     *            replicated from other nodes.
-     * @param lastDirtyTimestamp
-     *            last timestamp when this instance information was updated.
+     * @param isReplication      a header parameter containing information whether this is
+     *                           replicated from other nodes.
+     * @param lastDirtyTimestamp last timestamp when this instance information was updated.
      * @return response indicating whether the operation was a success or
-     *         failure.
+     * failure.
      */
     @DELETE
     @Path("status")
     public Response deleteStatusUpdate(
-            @HeaderParam(PeerEurekaNode.HEADER_REPLICATION) String isReplication,
-            @QueryParam("value") String newStatusValue,
-            @QueryParam("lastDirtyTimestamp") String lastDirtyTimestamp) {
+        @HeaderParam(PeerEurekaNode.HEADER_REPLICATION) String isReplication,
+        @QueryParam("value") String newStatusValue,
+        @QueryParam("lastDirtyTimestamp") String lastDirtyTimestamp) {
         try {
             // 应用实例不存在
             if (registry.getInstanceByAppAndId(app.getName(), id) == null) {
@@ -216,7 +208,7 @@ public class InstanceResource {
             // 覆盖状态删除
             InstanceStatus newStatus = newStatusValue == null ? InstanceStatus.UNKNOWN : InstanceStatus.valueOf(newStatusValue);
             boolean isSuccess = registry.deleteStatusOverride(app.getName(), id,
-                    newStatus, lastDirtyTimestamp, "true".equals(isReplication));
+                newStatus, lastDirtyTimestamp, "true".equals(isReplication));
 
             // 返回结果
             if (isSuccess) {
@@ -235,9 +227,10 @@ public class InstanceResource {
     /**
      * Updates user-specific metadata information. If the key is already available, its value will be overwritten.
      * If not, it will be added.
+     *
      * @param uriInfo - URI information generated by jersey.
      * @return response indicating whether the operation was a success or
-     *         failure.
+     * failure.
      */
     @PUT
     @Path("metadata")
@@ -275,15 +268,13 @@ public class InstanceResource {
     /**
      * Handles cancellation of leases for this particular instance.
      *
-     * @param isReplication
-     *            a header parameter containing information whether this is
-     *            replicated from other nodes.
+     * @param isReplication a header parameter containing information whether this is
+     *                      replicated from other nodes.
      * @return response indicating whether the operation was a success or
-     *         failure.
+     * failure.
      */
     @DELETE
-    public Response cancelLease(
-            @HeaderParam(PeerEurekaNode.HEADER_REPLICATION) String isReplication) {
+    public Response cancelLease(@HeaderParam(PeerEurekaNode.HEADER_REPLICATION) String isReplication) {
         // 下线
         boolean isSuccess = registry.cancel(app.getName(), id, "true".equals(isReplication));
 
@@ -305,17 +296,18 @@ public class InstanceResource {
                 // 请求 的 较大
                 if (lastDirtyTimestamp > appInfo.getLastDirtyTimestamp()) {
                     logger.debug("Time to sync, since the last dirty timestamp differs -"
-                                    + " ReplicationInstance id : {},Registry : {} Incoming: {} Replication: {}", args);
+                        + " ReplicationInstance id : {},Registry : {} Incoming: {} Replication: {}", args);
+                    // 需要Client重新注册, 因为Client的InstanceInfo已经发生改变了, 设置成Dirty了
                     return Response.status(Status.NOT_FOUND).build();
-                // Server 的 较大
+                    // Server 的 较大
                 } else if (appInfo.getLastDirtyTimestamp() > lastDirtyTimestamp) {
                     // In the case of replication, send the current instance info in the registry for the
                     // replicating node to sync itself with this one.
                     if (isReplication) {
                         logger.debug(
-                                "Time to sync, since the last dirty timestamp differs -"
-                                        + " ReplicationInstance id : {},Registry : {} Incoming: {} Replication: {}",
-                                args);
+                            "Time to sync, since the last dirty timestamp differs -"
+                                + " ReplicationInstance id : {},Registry : {} Incoming: {} Replication: {}",
+                            args);
                         return Response.status(Status.CONFLICT).entity(appInfo).build();
                     } else {
                         return Response.ok().build();

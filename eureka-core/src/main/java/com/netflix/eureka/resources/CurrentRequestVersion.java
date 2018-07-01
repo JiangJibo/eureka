@@ -32,8 +32,7 @@ import com.netflix.eureka.Version;
  */
 public final class CurrentRequestVersion {
 
-    private static final ThreadLocal<Version> CURRENT_REQ_VERSION =
-            new ThreadLocal<Version>();
+    private static final ThreadLocal<Version> CURRENT_REQ_VERSION = new ThreadLocal<Version>();
 
     private CurrentRequestVersion() {
     }

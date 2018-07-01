@@ -125,6 +125,7 @@ public class PeerEurekaNodes {
 
                 }
             };
+            // 每隔10分钟更新集群节点
             taskExecutor.scheduleWithFixedDelay(
                 peersUpdateTask,
                 serverConfig.getPeerEurekaNodesUpdateIntervalMs(),

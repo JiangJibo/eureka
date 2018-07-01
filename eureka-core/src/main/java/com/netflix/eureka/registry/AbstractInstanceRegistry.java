@@ -247,6 +247,7 @@ public abstract class AbstractInstanceRegistry implements InstanceRegistry {
     }
 
     /**
+     * 将InstanceInfo注册入自身
      * Registers a new instance with a given duration.
      * leaseDuration : 租约过期时间90S
      *
@@ -286,15 +287,13 @@ public abstract class AbstractInstanceRegistry implements InstanceRegistry {
                 }
             } else {
                 // The lease does not exist and hence it is a new registration
-                // 【自我保护机制】增加 `numberOfRenewsPerMinThreshold` 、`expectedNumberOfRenewsPerMin`
+                // InstanceInfo的第一次注册,【自我保护机制】增加 `numberOfRenewsPerMinThreshold` 、`expectedNumberOfRenewsPerMin`
                 synchronized (lock) {
                     if (this.expectedNumberOfRenewsPerMin > 0) {
                         // Since the client wants to cancel it, reduce the threshold
-                        // (1
-                        // for 30 seconds, 2 for a minute)
+                        // (1 for 30 seconds, 2 for a minute)
                         this.expectedNumberOfRenewsPerMin = this.expectedNumberOfRenewsPerMin + 2;
-                        this.numberOfRenewsPerMinThreshold =
-                            (int)(this.expectedNumberOfRenewsPerMin * serverConfig.getRenewalPercentThreshold());
+                        this.numberOfRenewsPerMinThreshold = (int)(this.expectedNumberOfRenewsPerMin * serverConfig.getRenewalPercentThreshold());
                     }
                 }
                 logger.debug("No previous lease information found; it is new registration");
@@ -867,8 +866,7 @@ public abstract class AbstractInstanceRegistry implements InstanceRegistry {
     public Applications getApplicationsFromMultipleRegions(String[] remoteRegions) {
         // TODO[0009]：RemoteRegionRegistry
         boolean includeRemoteRegion = null != remoteRegions && remoteRegions.length != 0;
-        logger.debug("Fetching applications registry with remote regions: {}, Regions argument {}",
-            includeRemoteRegion, Arrays.toString(remoteRegions));
+        logger.debug("Fetching applications registry with remote regions: {}, Regions argument {}", includeRemoteRegion, Arrays.toString(remoteRegions));
         if (includeRemoteRegion) {
             GET_ALL_WITH_REMOTE_REGIONS_CACHE_MISS.increment();
         } else {
@@ -1174,8 +1172,8 @@ public abstract class AbstractInstanceRegistry implements InstanceRegistry {
         if (leaseMap != null) {
             lease = leaseMap.get(id);
         }
-        if (lease != null
-            && (!isLeaseExpirationEnabled() || !lease.isExpired())) {
+        // 如果为开启租约过期服务; 或者开启了租约过期,但此租约未过期
+        if (lease != null && (!isLeaseExpirationEnabled() || !lease.isExpired())) {
             return decorateInstanceInfo(lease);
         } else if (includeRemoteRegions) {
             for (RemoteRegionRegistry remoteRegistry : this.regionNameVSRemoteRegistry.values()) {
@@ -1213,8 +1211,7 @@ public abstract class AbstractInstanceRegistry implements InstanceRegistry {
     public List<InstanceInfo> getInstancesById(String id, boolean includeRemoteRegions) {
         List<InstanceInfo> list = new ArrayList<InstanceInfo>();
 
-        for (Iterator<Entry<String, Map<String, Lease<InstanceInfo>>>> iter =
-             registry.entrySet().iterator(); iter.hasNext(); ) {
+        for (Iterator<Entry<String, Map<String, Lease<InstanceInfo>>>> iter = registry.entrySet().iterator(); iter.hasNext(); ) {
 
             Map<String, Lease<InstanceInfo>> leaseMap = iter.next().getValue();
             if (leaseMap != null) {
@@ -1245,6 +1242,12 @@ public abstract class AbstractInstanceRegistry implements InstanceRegistry {
         return list;
     }
 
+    /**
+     * 装饰InstanceInfo
+     *
+     * @param lease
+     * @return
+     */
     private InstanceInfo decorateInstanceInfo(Lease<InstanceInfo> lease) {
         InstanceInfo info = lease.getHolder();
 
@@ -1412,7 +1415,7 @@ public abstract class AbstractInstanceRegistry implements InstanceRegistry {
         @Override
         public void run() {
             try {
-                // 获取 补偿时间毫秒数, 可能这次
+                // 获取 补偿时间毫秒数, 计算这次执行距离上次执行的时间差
                 long compensationTimeMs = getCompensationTimeMs();
                 logger.info("Running the evict task with compensationTime {}ms", compensationTimeMs);
                 // 清理过期租约逻辑

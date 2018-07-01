@@ -34,6 +34,8 @@ import java.net.UnknownHostException;
 import static com.netflix.discovery.shared.transport.EurekaHttpResponse.anEurekaHttpResponse;
 
 /**
+ * Jsesey备份客户端
+ *
  * @author Tomasz Bak
  */
 public class JerseyReplicationClient extends AbstractJerseyEurekaHttpClient implements HttpReplicationClient {
