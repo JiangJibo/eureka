@@ -1,5 +1,6 @@
 package com.netflix.eureka.util.batcher;
 
+import com.netflix.eureka.util.batcher.AcceptorExecutor.AcceptorRunner;
 import com.netflix.eureka.util.batcher.TaskProcessor.ProcessingResult;
 import com.netflix.servo.annotations.DataSourceType;
 import com.netflix.servo.annotations.Monitor;
@@ -41,7 +42,7 @@ class TaskExecutors<ID, T> {
     private final List<Thread> workerThreads;
 
     /**
-     * 创建{@link workerCount}工作者线程{@link WorkerRunnable}, 然后启动它
+     * 创建{@link #workerCount}工作者线程{@link WorkerRunnable}, 然后启动它
      * WorkerRunnable : 可能是批量的处理器{@link BatchWorkerRunnable}; 也可能是非批量的处理器{@link SingleTaskWorkerRunnable}
      *
      * @param workerRunnableFactory
@@ -257,6 +258,7 @@ class TaskExecutors<ID, T> {
             try {
                 while (!isShutdown.get()) {
                     // 从 TaskDispatcher 转发器处获取批量任务
+                    // 释放阻塞任务队列信号量, 阻塞,直到从队列里获取到待处理任务
                     List<TaskHolder<ID, T>> holders = getWork();
 
                     // TODO 芋艿：监控相关，暂时无视
@@ -290,12 +292,13 @@ class TaskExecutors<ID, T> {
 
         /**
          * 获取一个批量任务直到成功
+         * 释放阻塞任务队列的信号量, 让{@link AcceptorRunner#assignBatchWork()} 向队列里填充任务, 然后从阻塞队列中获取任务
          *
          * @return 一个批量任务
          * @throws InterruptedException 当线程被打断时
          */
         private List<TaskHolder<ID, T>> getWork() throws InterruptedException {
-            // 增加请求信号量, 开放异步任务执行, 等待阻塞队列里填充进任务
+            // 释放请求信号量, 开放异步任务执行, 这样 AcceptorRunner 才能向队列里填充任务
             BlockingQueue<List<TaskHolder<ID, T>>> workQueue = taskDispatcher.requestWorkItems();
             // 【循环】获取批量任务，直到成功
             List<TaskHolder<ID, T>> result;
@@ -334,7 +337,7 @@ class TaskExecutors<ID, T> {
         public void run() {
             try {
                 while (!isShutdown.get()) {
-                    // 发起请求信号量，并获得单任务的工作队列
+                    // 释放阻塞任务队列的信号量, 让{@link AcceptorRunner#assignBatchWork()} 向队列里填充任务, 然后从阻塞队列中获取任务
                     BlockingQueue<TaskHolder<ID, T>> workQueue = taskDispatcher.requestWorkItem();
                     TaskHolder<ID, T> taskHolder;
                     // 【循环】获取单任务，直到成功

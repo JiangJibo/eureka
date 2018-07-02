@@ -83,7 +83,7 @@ public class PeerEurekaNode {
      */
     private final EurekaServerConfig config;
     /**
-     * 批任务同步最大延迟
+     * 批任务同步最大延迟, 默认值 30S
      */
     private final long maxProcessingDelayMs;
     /**

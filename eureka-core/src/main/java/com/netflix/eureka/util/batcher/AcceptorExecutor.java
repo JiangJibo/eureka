@@ -1,5 +1,7 @@
 package com.netflix.eureka.util.batcher;
 
+import com.netflix.eureka.util.batcher.TaskExecutors.BatchWorkerRunnable;
+import com.netflix.eureka.util.batcher.TaskExecutors.SingleTaskWorkerRunnable;
 import com.netflix.eureka.util.batcher.TaskProcessor.ProcessingResult;
 import com.netflix.servo.annotations.DataSourceType;
 import com.netflix.servo.annotations.Monitor;
@@ -199,12 +201,22 @@ class AcceptorExecutor<ID, T> {
         trafficShaper.registerFailure(processingResult);
     }
 
+    /**
+     * 当是{@link SingleTaskWorkerRunnable} 时, 调用此方法, 开启单个任务的调度
+     *
+     * @return
+     */
     BlockingQueue<TaskHolder<ID, T>> requestWorkItem() {
         // 将信号量的值增加为1
         singleItemWorkRequests.release();
         return singleItemWorkQueue;
     }
 
+    /**
+     * 当是{@link BatchWorkerRunnable#getWork()} 时, 调用此方法, 开启单个任务的调度
+     *
+     * @return
+     */
     BlockingQueue<List<TaskHolder<ID, T>>> requestWorkItems() {
         // 将信号量的值增加为1
         batchWorkRequests.release();
@@ -267,11 +279,11 @@ class AcceptorExecutor<ID, T> {
                     if (scheduleTime <= now) {
                         // 调度批量任务, 将待处理任务合并成一个List<TaskHolder<ID, T>>, 加入 batchWorkQueue 中
                         assignBatchWork();
-                        // 调度单任务
+                        // 调度单任务 , 将一个待处理任务 TaskHolder<ID, T> 加入 singleItemWorkQueue 中
                         assignSingleItemWork();
                     }
 
-                    // 1）任务执行器无任务请求，正在忙碌处理之前的任务；或者 2）任务延迟调度。睡眠 10 秒，避免资源浪费。
+                    // 1）任务执行器无任务请求，正在忙碌处理之前的任务；或者 2）任务延迟调度。睡眠 10 毫秒，避免资源浪费。
                     // If no worker is requesting data or there is a delay injected by the traffic shaper,
                     // sleep for some time to avoid tight loop.
                     if (totalItems == processingOrder.size()) {
@@ -357,14 +369,17 @@ class AcceptorExecutor<ID, T> {
             }
         }
 
+        /**
+         * {@link #requestWorkItem}开启信号量, 也就是请求一次任务，也就是上一次任务处理完了
+         */
         void assignSingleItemWork() {
             if (!processingOrder.isEmpty()) { // 待执行任队列不为空
-                // 获取 单任务工作请求信号量
+                // 获取 单任务工作请求信号量, 若未提前开启, 则获取不到
                 if (singleItemWorkRequests.tryAcquire(1)) {
                     // 【循环】获取单任务
                     long now = System.currentTimeMillis();
                     while (!processingOrder.isEmpty()) {
-                        ID id = processingOrder.poll(); // 一定不为空
+                        ID id = processingOrder.poll();
                         TaskHolder<ID, T> holder = pendingTasks.remove(id);
                         if (holder.getExpiryTime() > now) {
                             singleItemWorkQueue.add(holder);
@@ -380,11 +395,12 @@ class AcceptorExecutor<ID, T> {
 
         /**
          * 确定能够执行批量处理,将待处理任务合并成一个集合任务, List<TaskHolder<ID, T>>
+         * {@link #requestWorkItems}开启信号量, 也就是请求一次任务，也就是上一次任务处理完了
          */
         void assignBatchWork() {
             // 一定要符合条件后才能触发批量操作
             if (hasEnoughTasksForNextBatch()) {
-                // 获取 批量任务工作请求信号量
+                // 获取 批量任务工作请求信号量, 若未提前开启, 则获取不到
                 if (batchWorkRequests.tryAcquire(1)) {
                     // 获取批量任务
                     long now = System.currentTimeMillis();
