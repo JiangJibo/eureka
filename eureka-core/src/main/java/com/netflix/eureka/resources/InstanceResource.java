@@ -115,7 +115,7 @@ public class InstanceResource {
         Response response = null;
         if (lastDirtyTimestamp != null && serverConfig.shouldSyncWhenTimestampDiffers()) {
 
-            // 如果Client的InstanceInfo发生改变, isDirty, 且最新的currentDirtyTime != lastDirtyTime , 返回404, 需要Client重新注册
+            // 如果Client的InstanceInfo发生改变, isDirty, 且最新的currentDirtyTime > lastDirtyTime , 返回404, 需要Client重新注册
             response = this.validateDirtyTimestamp(Long.valueOf(lastDirtyTimestamp), isFromReplicaNode);
 
             // Store the overridden status since the validation found out the node that replicates wins

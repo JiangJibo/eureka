@@ -146,15 +146,27 @@ class ReplicationTaskProcessor implements TaskProcessor<ReplicationTask> {
         }
     }
 
+    /**
+     * 将多个备份任务合并成一个备份任务集合
+     *
+     * @param tasks
+     * @return
+     */
     private ReplicationList createReplicationListOf(List<ReplicationTask> tasks) {
         ReplicationList list = new ReplicationList();
         for (ReplicationTask task : tasks) {
             // Only InstanceReplicationTask are batched.
-            list.addReplicationInstance(createReplicationInstanceOf((InstanceReplicationTask) task));
+            list.addReplicationInstance(createReplicationInstanceOf((InstanceReplicationTask)task));
         }
         return list;
     }
 
+    /**
+     * 响应码在200-300之间才是请求成功
+     *
+     * @param statusCode
+     * @return
+     */
     private static boolean isSuccess(int statusCode) {
         return statusCode >= 200 && statusCode < 300;
     }
@@ -163,8 +175,7 @@ class ReplicationTaskProcessor implements TaskProcessor<ReplicationTask> {
      * Check if the exception is some sort of network timeout exception (ie)
      * read,connect.
      *
-     * @param e
-     *            The exception for which the information needs to be found.
+     * @param e The exception for which the information needs to be found.
      * @return true, if it is a network timeout, false otherwise.
      */
     private static boolean isNetworkConnectException(Throwable e) {
@@ -177,6 +188,13 @@ class ReplicationTaskProcessor implements TaskProcessor<ReplicationTask> {
         return false;
     }
 
+    /**
+     * 将InstanceInfo转换为待备份的信息
+     * 当是注册动作时, 会发送InstanceInfo; 其他动作不需要
+     *
+     * @param task
+     * @return
+     */
     private static ReplicationInstance createReplicationInstanceOf(InstanceReplicationTask task) {
         ReplicationInstanceBuilder instanceBuilder = aReplicationInstance();
         // appName
@@ -190,7 +208,7 @@ class ReplicationTaskProcessor implements TaskProcessor<ReplicationTask> {
             instanceBuilder.withOverriddenStatus(overriddenStatus);
             // lastDirtyTimestamp
             instanceBuilder.withLastDirtyTimestamp(instanceInfo.getLastDirtyTimestamp());
-            // instanceInfo
+            // instanceInfo; 当是注册动作时, 会发送InstanceInfo; 其他动作不需要
             if (task.shouldReplicateInstanceInfo()) {
                 instanceBuilder.withInstanceInfo(instanceInfo);
             }

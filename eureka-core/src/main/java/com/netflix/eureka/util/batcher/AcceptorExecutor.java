@@ -75,7 +75,7 @@ class AcceptorExecutor<ID, T> {
      */
     private final Map<ID, TaskHolder<ID, T>> pendingTasks = new HashMap<>();
     /**
-     * 待执行队列
+     * 待执行队列的ID顺序
      */
     private final Deque<ID> processingOrder = new LinkedList<>();
 
@@ -122,6 +122,14 @@ class AcceptorExecutor<ID, T> {
 
     private final Timer batchSizeMetric;
 
+    /**
+     * @param id
+     * @param maxBufferSize          待执行队列最大数量  10000
+     * @param maxBatchingSize        单个批量任务包含任务最大数量  250
+     * @param maxBatchingDelay       批量任务等待最大延迟时长，单位：毫秒  500
+     * @param congestionRetryDelayMs 请求限流延迟重试时间，单位：毫秒  1000
+     * @param networkFailureRetryMs  网络失败延迟重试时长，单位：毫秒 100
+     */
     AcceptorExecutor(String id,
                      int maxBufferSize,
                      int maxBatchingSize,
@@ -135,7 +143,7 @@ class AcceptorExecutor<ID, T> {
         // 创建 网络通信整形器
         this.trafficShaper = new TrafficShaper(congestionRetryDelayMs, networkFailureRetryMs);
 
-        // 创建 接收任务线程
+        // 创建 接收任务线程, 同时启动处理线程, 也就是"AcceptorRunner"对象
         ThreadGroup threadGroup = new ThreadGroup("eurekaTaskExecutors");
         this.acceptorThread = new Thread(threadGroup, new AcceptorRunner(), "TaskAcceptor-" + id);
         this.acceptorThread.setDaemon(true);
@@ -144,10 +152,10 @@ class AcceptorExecutor<ID, T> {
         // TODO 芋艿：监控相关，暂时无视
         final double[] percentiles = {50.0, 95.0, 99.0, 99.5};
         final StatsConfig statsConfig = new StatsConfig.Builder()
-                .withSampleSize(1000)
-                .withPercentiles(percentiles)
-                .withPublishStdDev(true)
-                .build();
+            .withSampleSize(1000)
+            .withPercentiles(percentiles)
+            .withPublishStdDev(true)
+            .build();
         final MonitorConfig config = MonitorConfig.builder(METRIC_REPLICATION_PREFIX + "batchSize").build();
         this.batchSizeMetric = new StatsTimer(config, statsConfig);
         try {
@@ -157,6 +165,13 @@ class AcceptorExecutor<ID, T> {
         }
     }
 
+    /**
+     * 将一个任务添加任务接收队列
+     *
+     * @param id
+     * @param task
+     * @param expiryTime
+     */
     void process(ID id, T task, long expiryTime) {
         acceptorQueue.add(new TaskHolder<ID, T>(id, task, expiryTime));
         acceptedTasks++;
@@ -185,11 +200,13 @@ class AcceptorExecutor<ID, T> {
     }
 
     BlockingQueue<TaskHolder<ID, T>> requestWorkItem() {
+        // 将信号量的值增加为1
         singleItemWorkRequests.release();
         return singleItemWorkQueue;
     }
 
     BlockingQueue<List<TaskHolder<ID, T>>> requestWorkItems() {
+        // 将信号量的值增加为1
         batchWorkRequests.release();
         return batchWorkQueue;
     }
@@ -205,7 +222,8 @@ class AcceptorExecutor<ID, T> {
         return acceptorQueue.size();
     }
 
-    @Monitor(name = METRIC_REPLICATION_PREFIX + "reprocessQueueSize", description = "Number of tasks waiting in the reprocess queue", type = DataSourceType.GAUGE)
+    @Monitor(name = METRIC_REPLICATION_PREFIX + "reprocessQueueSize", description = "Number of tasks waiting in the reprocess queue",
+        type = DataSourceType.GAUGE)
     public long getReprocessQueueSize() {
         return reprocessQueue.size();
     }
@@ -215,7 +233,8 @@ class AcceptorExecutor<ID, T> {
         return pendingTasks.size();
     }
 
-    @Monitor(name = METRIC_REPLICATION_PREFIX + "pendingJobRequests", description = "Number of worker threads awaiting job assignment", type = DataSourceType.GAUGE)
+    @Monitor(name = METRIC_REPLICATION_PREFIX + "pendingJobRequests", description = "Number of worker threads awaiting job assignment",
+        type = DataSourceType.GAUGE)
     public long getPendingJobRequests() {
         return singleItemWorkRequests.availablePermits() + batchWorkRequests.availablePermits();
     }
@@ -246,7 +265,7 @@ class AcceptorExecutor<ID, T> {
 
                     // 调度
                     if (scheduleTime <= now) {
-                        // 调度批量任务
+                        // 调度批量任务, 将待处理任务合并成一个List<TaskHolder<ID, T>>, 加入 batchWorkQueue 中
                         assignBatchWork();
                         // 调度单任务
                         assignSingleItemWork();
@@ -267,20 +286,24 @@ class AcceptorExecutor<ID, T> {
             }
         }
 
+        /**
+         * 待处理任务是否超过批次限制, 250个
+         *
+         * @return
+         */
         private boolean isFull() {
             return pendingTasks.size() >= maxBufferSize;
         }
 
         private void drainInputQueues() throws InterruptedException {
             do {
-                // 处理完重新执行队列
+                // 处理完需要重新执行的任务队列
                 drainReprocessQueue();
-                // 处理完接收队列
+                // 处理完新接收的任务队列
                 drainAcceptorQueue();
 
-                // 所有队列为空，等待 10 ms，看接收队列是否有新任务
                 if (!isShutdown.get()) {
-                    // If all queues are empty, block for a while on the acceptor queue
+                    // If all queues are empty, block for a while on the acceptor queue  所有队列为空，等待 10 ms，看接收队列是否有新任务
                     if (reprocessQueue.isEmpty() && acceptorQueue.isEmpty() && pendingTasks.isEmpty()) {
                         TaskHolder<ID, T> taskHolder = acceptorQueue.poll(10, TimeUnit.MILLISECONDS);
                         if (taskHolder != null) {
@@ -299,6 +322,7 @@ class AcceptorExecutor<ID, T> {
 
         private void drainReprocessQueue() {
             long now = System.currentTimeMillis();
+            // 当需要重新处理的队列不为空, 且当前批次还未满
             while (!reprocessQueue.isEmpty() && !isFull()) {
                 TaskHolder<ID, T> taskHolder = reprocessQueue.pollLast(); // 优先拿较新的任务
                 ID id = taskHolder.getId();
@@ -319,7 +343,7 @@ class AcceptorExecutor<ID, T> {
         }
 
         private void appendTaskHolder(TaskHolder<ID, T> taskHolder) {
-            // 如果待执行队列已满，移除待处理队列，放弃较早的任务
+            // 如果待执行队列已满，移除待处理队列头部，放弃较早的任务(需重复执行的任务)
             if (isFull()) {
                 pendingTasks.remove(processingOrder.poll());
                 queueOverflows++;
@@ -354,18 +378,23 @@ class AcceptorExecutor<ID, T> {
             }
         }
 
+        /**
+         * 确定能够执行批量处理,将待处理任务合并成一个集合任务, List<TaskHolder<ID, T>>
+         */
         void assignBatchWork() {
+            // 一定要符合条件后才能触发批量操作
             if (hasEnoughTasksForNextBatch()) {
                 // 获取 批量任务工作请求信号量
                 if (batchWorkRequests.tryAcquire(1)) {
                     // 获取批量任务
                     long now = System.currentTimeMillis();
+                    //  每次处理的量不能超过最大限制
                     int len = Math.min(maxBatchingSize, processingOrder.size());
                     List<TaskHolder<ID, T>> holders = new ArrayList<>(len);
                     while (holders.size() < len && !processingOrder.isEmpty()) {
                         ID id = processingOrder.poll();
                         TaskHolder<ID, T> holder = pendingTasks.remove(id);
-                        if (holder.getExpiryTime() > now) { // 过期
+                        if (holder.getExpiryTime() > now) { // 未过期
                             holders.add(holder);
                         } else {
                             expiredTasks++;
@@ -387,12 +416,12 @@ class AcceptorExecutor<ID, T> {
             if (processingOrder.isEmpty()) {
                 return false;
             }
-            // 待执行任务映射已满
+            // 待执行任务映射已满, 容量 >= 250
             if (pendingTasks.size() >= maxBufferSize) {
                 return true;
             }
 
-            // 到达批量任务处理最大等待延迟( 通过待处理队列的头部任务判断 )
+            // 到达批量任务处理最大等待延迟( 通过待处理队列的头部任务判断 ), 头部任务的生成时间距离现在已经超过了500ms
             TaskHolder<ID, T> nextHolder = pendingTasks.get(processingOrder.peek());
             long delay = System.currentTimeMillis() - nextHolder.getSubmitTimestamp();
             return delay >= maxBatchingDelay;

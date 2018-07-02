@@ -40,6 +40,14 @@ class TaskExecutors<ID, T> {
      */
     private final List<Thread> workerThreads;
 
+    /**
+     * 创建{@link workerCount}工作者线程{@link WorkerRunnable}, 然后启动它
+     * WorkerRunnable : 可能是批量的处理器{@link BatchWorkerRunnable}; 也可能是非批量的处理器{@link SingleTaskWorkerRunnable}
+     *
+     * @param workerRunnableFactory
+     * @param workerCount
+     * @param isShutdown
+     */
     TaskExecutors(WorkerRunnableFactory<ID, T> workerRunnableFactory, int workerCount, AtomicBoolean isShutdown) {
         this.isShutdown = isShutdown;
         this.workerThreads = new ArrayList<>();
@@ -66,12 +74,12 @@ class TaskExecutors<ID, T> {
     /**
      * 创建单任务执行器
      *
-     * @param name 任务执行器名
-     * @param workerCount 任务执行器工作线程数
-     * @param processor 任务处理器
+     * @param name             任务执行器名
+     * @param workerCount      任务执行器工作线程数
+     * @param processor        任务处理器
      * @param acceptorExecutor 接收任务执行器
-     * @param <ID> 任务编号泛型
-     * @param <T> 任务泛型
+     * @param <ID>             任务编号泛型
+     * @param <T>              任务泛型
      * @return 单任务执行器
      */
     static <ID, T> TaskExecutors<ID, T> singleItemExecutors(final String name,
@@ -92,12 +100,12 @@ class TaskExecutors<ID, T> {
     /**
      * 创建批量任务执行器
      *
-     * @param name 任务执行器名
-     * @param workerCount 任务执行器工作线程数
-     * @param processor 任务处理器
+     * @param name             任务执行器名
+     * @param workerCount      任务执行器工作线程数
+     * @param processor        任务处理器
      * @param acceptorExecutor 接收任务执行器
-     * @param <ID> 任务编号泛型
-     * @param <T> 任务泛型
+     * @param <ID>             任务编号泛型
+     * @param <T>              任务泛型
      * @return 批量任务执行器
      */
     static <ID, T> TaskExecutors<ID, T> batchExecutors(final String name,
@@ -117,13 +125,16 @@ class TaskExecutors<ID, T> {
 
     static class TaskExecutorMetrics {
 
-        @Monitor(name = METRIC_REPLICATION_PREFIX + "numberOfSuccessfulExecutions", description = "Number of successful task executions", type = DataSourceType.COUNTER)
+        @Monitor(name = METRIC_REPLICATION_PREFIX + "numberOfSuccessfulExecutions", description = "Number of successful task executions",
+            type = DataSourceType.COUNTER)
         volatile long numberOfSuccessfulExecutions;
 
-        @Monitor(name = METRIC_REPLICATION_PREFIX + "numberOfTransientErrors", description = "Number of transient task execution errors", type = DataSourceType.COUNTER)
+        @Monitor(name = METRIC_REPLICATION_PREFIX + "numberOfTransientErrors", description = "Number of transient task execution errors",
+            type = DataSourceType.COUNTER)
         volatile long numberOfTransientError;
 
-        @Monitor(name = METRIC_REPLICATION_PREFIX + "numberOfPermanentErrors", description = "Number of permanent task execution errors", type = DataSourceType.COUNTER)
+        @Monitor(name = METRIC_REPLICATION_PREFIX + "numberOfPermanentErrors", description = "Number of permanent task execution errors",
+            type = DataSourceType.COUNTER)
         volatile long numberOfPermanentError;
 
         final StatsTimer taskWaitingTimeForProcessing;
@@ -131,10 +142,10 @@ class TaskExecutors<ID, T> {
         TaskExecutorMetrics(String id) {
             final double[] percentiles = {50.0, 95.0, 99.0, 99.5};
             final StatsConfig statsConfig = new StatsConfig.Builder()
-                    .withSampleSize(1000)
-                    .withPercentiles(percentiles)
-                    .withPublishStdDev(true)
-                    .build();
+                .withSampleSize(1000)
+                .withPercentiles(percentiles)
+                .withPublishStdDev(true)
+                .build();
             final MonitorConfig config = MonitorConfig.builder(METRIC_REPLICATION_PREFIX + "executionTime").build();
             taskWaitingTimeForProcessing = new StatsTimer(config, statsConfig);
 
@@ -175,13 +186,21 @@ class TaskExecutors<ID, T> {
      * 创建工作线程工厂
      *
      * @param <ID> 任务编号泛型
-     * @param <T> 批量任务执行器
+     * @param <T>  批量任务执行器
      */
     interface WorkerRunnableFactory<ID, T> {
+
         WorkerRunnable<ID, T> create(int idx);
     }
 
+    /**
+     * 工作者线程
+     *
+     * @param <ID>
+     * @param <T>
+     */
     abstract static class WorkerRunnable<ID, T> implements Runnable {
+
         /**
          * 线程名
          */
@@ -217,6 +236,12 @@ class TaskExecutors<ID, T> {
         }
     }
 
+    /**
+     * 批量处理的工作者线程
+     *
+     * @param <ID>
+     * @param <T>
+     */
     static class BatchWorkerRunnable<ID, T> extends WorkerRunnable<ID, T> {
 
         BatchWorkerRunnable(String workerName,
@@ -231,7 +256,7 @@ class TaskExecutors<ID, T> {
         public void run() {
             try {
                 while (!isShutdown.get()) {
-                    // 获取批量任务
+                    // 从 TaskDispatcher 转发器处获取批量任务
                     List<TaskHolder<ID, T>> holders = getWork();
 
                     // TODO 芋艿：监控相关，暂时无视
@@ -270,7 +295,7 @@ class TaskExecutors<ID, T> {
          * @throws InterruptedException 当线程被打断时
          */
         private List<TaskHolder<ID, T>> getWork() throws InterruptedException {
-            // 发起请求信号量，并获得批量任务的工作队列
+            // 增加请求信号量, 开放异步任务执行, 等待阻塞队列里填充进任务
             BlockingQueue<List<TaskHolder<ID, T>>> workQueue = taskDispatcher.requestWorkItems();
             // 【循环】获取批量任务，直到成功
             List<TaskHolder<ID, T>> result;
@@ -289,6 +314,12 @@ class TaskExecutors<ID, T> {
         }
     }
 
+    /**
+     * 单个处理的工作者线程
+     *
+     * @param <ID>
+     * @param <T>
+     */
     static class SingleTaskWorkerRunnable<ID, T> extends WorkerRunnable<ID, T> {
 
         SingleTaskWorkerRunnable(String workerName,

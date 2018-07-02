@@ -36,6 +36,12 @@ public abstract class InstanceReplicationTask extends ReplicationTask {
      */
     private final boolean replicateInstanceInfo;
 
+    /**
+     * @param peerNodeName
+     * @param action
+     * @param appName
+     * @param id
+     */
     protected InstanceReplicationTask(String peerNodeName, Action action, String appName, String id) {
         super(peerNodeName, action);
         this.appName = appName;
@@ -45,6 +51,13 @@ public abstract class InstanceReplicationTask extends ReplicationTask {
         this.replicateInstanceInfo = false;
     }
 
+    /**
+     * @param peerNodeName
+     * @param action
+     * @param instanceInfo
+     * @param overriddenStatus
+     * @param replicateInstanceInfo 注册时同步其他节点，true , 会发送注册信息; 其他动作false, 不会
+     */
     protected InstanceReplicationTask(String peerNodeName,
                                       Action action,
                                       InstanceInfo instanceInfo,

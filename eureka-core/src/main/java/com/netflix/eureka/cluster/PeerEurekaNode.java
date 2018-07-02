@@ -16,6 +16,9 @@
 
 package com.netflix.eureka.cluster;
 
+import java.net.MalformedURLException;
+import java.net.URL;
+
 import com.netflix.appinfo.InstanceInfo;
 import com.netflix.appinfo.InstanceInfo.InstanceStatus;
 import com.netflix.discovery.shared.transport.EurekaHttpResponse;
@@ -26,11 +29,9 @@ import com.netflix.eureka.registry.PeerAwareInstanceRegistryImpl.Action;
 import com.netflix.eureka.resources.ASGResource.ASGStatus;
 import com.netflix.eureka.util.batcher.TaskDispatcher;
 import com.netflix.eureka.util.batcher.TaskDispatchers;
+import com.netflix.eureka.util.batcher.TaskProcessor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import java.net.MalformedURLException;
-import java.net.URL;
 
 /**
  * Eureka Server 集群节点
@@ -100,7 +101,12 @@ public class PeerEurekaNode {
     private final HttpReplicationClient replicationClient;
 
     /**
-     * 批量任务分发器
+     * 批量任务分发器,
+     * 仅仅是负责把任务放入 {@link com.netflix.eureka.util.batcher.AcceptorExecutor#acceptorQueue}内,
+     * {@link com.netflix.eureka.util.batcher.AcceptorExecutor.AcceptorRunner}会定期的将 acceptorQueue 里的任务按批次大小组合成一个集合任务
+     * 会有{@link com.netflix.eureka.util.batcher.TaskExecutors#workerThreads}
+     * {@link com.netflix.eureka.util.batcher.TaskExecutors.BatchWorkerRunnable#getWork()} 工作线程从 "acceptorQueue" 里提取集合任务
+     * 最后交给{@link TaskProcessor}实现类{@link ReplicationTaskProcessor} 来实际执行
      */
     private final TaskDispatcher<String, ReplicationTask> batchingDispatcher;
     /**
@@ -133,12 +139,12 @@ public class PeerEurekaNode {
         // 初始化 批量任务分发器
         this.batchingDispatcher = TaskDispatchers.createBatchingTaskDispatcher(
             batcherName,
-            config.getMaxElementsInPeerReplicationPool(),
-            batchSize,
-            config.getMaxThreadsForPeerReplication(),
-            maxBatchingDelayMs,
-            serverUnavailableSleepTimeMs,
-            retrySleepTimeMs,
+            config.getMaxElementsInPeerReplicationPool(),   // 10000
+            batchSize,                                      // 250
+            config.getMaxThreadsForPeerReplication(),       // 20
+            maxBatchingDelayMs,                             // 500
+            serverUnavailableSleepTimeMs,                   // 1000
+            retrySleepTimeMs,                               // 100
             taskProcessor
         );
 
@@ -167,6 +173,7 @@ public class PeerEurekaNode {
         batchingDispatcher.process(
             taskId("register", info),
             new InstanceReplicationTask(targetHost, Action.Register, info, null, true) {
+                @Override
                 public EurekaHttpResponse<Void> execute() {
                     return replicationClient.register(info);
                 }
