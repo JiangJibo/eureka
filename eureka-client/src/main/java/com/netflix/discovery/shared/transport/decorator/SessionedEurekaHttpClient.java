@@ -45,12 +45,20 @@ public class SessionedEurekaHttpClient extends EurekaHttpClientDecorator {
 
     private final String name;
     private final EurekaHttpClientFactory clientFactory;
+    /**
+     * session周期，20*60*1000 ms,20分钟
+     */
     private final long sessionDurationMs;
     private volatile long currentSessionDurationMs;
 
     private volatile long lastReconnectTimeStamp = -1;
     private final AtomicReference<EurekaHttpClient> eurekaHttpClientRef = new AtomicReference<>();
 
+    /**
+     * @param name
+     * @param clientFactory
+     * @param sessionDurationMs 20*60*1000
+     */
     public SessionedEurekaHttpClient(String name, EurekaHttpClientFactory clientFactory, long sessionDurationMs) {
         this.name = name;
         this.clientFactory = clientFactory;

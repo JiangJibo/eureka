@@ -1351,7 +1351,7 @@ public class DiscoveryClient implements EurekaClient {
                 renewalIntervalInSecs, TimeUnit.SECONDS);
 
             // InstanceInfo replicator
-            instanceInfoReplicator = new InstanceInfoReplicator(                               // 创建 应用实例信息复制器, 也就是定期扫描配置信息，如果发生改变则更新InstanceInfo
+            instanceInfoReplicator = new InstanceInfoReplicator(                               // 创建 应用实例信息备份器, 也就是定期扫描配置信息，如果发生改变则更新InstanceInfo
                 this,
                 instanceInfo,
                 clientConfig.getInstanceInfoReplicationIntervalSeconds(),                      // 30S

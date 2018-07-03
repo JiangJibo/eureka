@@ -318,6 +318,7 @@ public class Applications {
             if (indexByRemoteRegions) {
                 application.shuffleAndStoreInstances(remoteRegionsRegistry, clientConfig, instanceRegionChecker);
             } else {
+                // 移除状态非UP的InstanceInfo
                 application.shuffleAndStoreInstances(filterUpInstances);
             }
             this.addInstancesToVIPMaps(application, virtualHostNameAppMap, secureVirtualHostNameAppMap);

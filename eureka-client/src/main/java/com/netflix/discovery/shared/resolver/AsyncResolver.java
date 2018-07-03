@@ -66,7 +66,7 @@ public class AsyncResolver<T extends EurekaEndpoint> implements ClosableResolver
     private final AtomicReference<List<T>> resultsRef;
 
     /**
-     * 定时解析 EndPoint 集群的频率
+     * 定时解析 EndPoint 集群的频率, 5 * 60 * 1000
      */
     private final int refreshIntervalMs;
     /**
@@ -221,7 +221,10 @@ public class AsyncResolver<T extends EurekaEndpoint> implements ClosableResolver
         return false;
     }
 
-    /* visible for testing */ void scheduleTask(long delay) {
+    /** 每5分钟执行一次
+     * @param delay
+     */
+    void scheduleTask(long delay) {
         executorService.schedule(
                 backgroundTask, delay, TimeUnit.MILLISECONDS);
     }
@@ -238,6 +241,9 @@ public class AsyncResolver<T extends EurekaEndpoint> implements ClosableResolver
         return resultsRef.get().size();  // return directly from the ref and not the method so as to not trigger warming
     }
 
+    /**
+     * 每隔5分钟执行一次重新解析EndPoint 集群任务, 更新服务器集群
+     */
     private final Runnable updateTask = new Runnable() {
         @Override
         public void run() {

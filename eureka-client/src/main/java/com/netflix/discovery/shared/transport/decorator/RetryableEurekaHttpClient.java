@@ -58,7 +58,7 @@ public class RetryableEurekaHttpClient extends EurekaHttpClientDecorator {
     private final ClusterResolver clusterResolver;
     private final TransportClientFactory clientFactory;
     private final ServerStatusEvaluator serverStatusEvaluator;
-    private final int numberOfRetries;
+    private final int numberOfRetries; // 3次重试
 
     private final AtomicReference<EurekaHttpClient> delegate = new AtomicReference<>();
     /**

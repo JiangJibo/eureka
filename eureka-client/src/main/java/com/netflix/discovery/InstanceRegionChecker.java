@@ -33,7 +33,6 @@ public class InstanceRegionChecker {
         if (instanceInfo.getDataCenterInfo() == null || instanceInfo.getDataCenterInfo().getName() == null) {
             logger.warn("Cannot get region for instance id:{}, app:{} as dataCenterInfo is null. Returning local:{} by default",
                     instanceInfo.getId(), instanceInfo.getAppName(), localRegion);
-
             return localRegion;
         }
         if (DataCenterInfo.Name.Amazon.equals(instanceInfo.getDataCenterInfo().getName())) {
