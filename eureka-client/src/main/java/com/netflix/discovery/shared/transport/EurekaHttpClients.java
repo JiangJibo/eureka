@@ -170,7 +170,7 @@ public final class EurekaHttpClients {
                                                                   final InstanceInfo myInstanceInfo) {
         // 获得 配置的可用区集合
         String[] availZones = clientConfig.getAvailabilityZones(clientConfig.getRegion());
-        // 获得 应用实例的 可用区
+        // 获得 应用实例的 可用区, 使用 availZones[0]
         String myZone = InstanceInfo.getZone(availZones, myInstanceInfo);
 
         // 创建 ZoneAffinityClusterResolver, 亲和Zone的集群解析器

@@ -158,9 +158,10 @@ public class DiscoveryClient implements EurekaClient {
      */
     private final AtomicReference<String> remoteRegionsToFetch;
     /**
-     * 获取哪些区域( Region )集合的注册信息
+     * 获取哪些区域( Region )集合的注册信息, = remoteRegionsToFetch.split(",")
      */
     private final AtomicReference<String[]> remoteRegionsRef;
+
     private final InstanceRegionChecker instanceRegionChecker;
 
     private final EndpointUtils.ServiceUrlRandomizer urlRandomizer;
@@ -380,7 +381,7 @@ public class DiscoveryClient implements EurekaClient {
         // 【3.2.3】赋值 BackupRegistry
         this.backupRegistryProvider = backupRegistryProvider;
 
-        // 【3.2.4】初始化 InstanceInfoBasedUrlRandomizer TODO 芋艿：什么用途
+        // 【3.2.4】初始化 InstanceInfoBasedUrlRandomizer , ServiceUrl随机选择器, 随机打乱ServiceUrl
         this.urlRandomizer = new EndpointUtils.InstanceInfoBasedUrlRandomizer(instanceInfo);
 
         // 【3.2.5】初始化应用集合在本地的缓存
@@ -447,7 +448,7 @@ public class DiscoveryClient implements EurekaClient {
                     .setDaemon(true)
                     .build()
             );  // use direct handoff
-            // maximumPoolSize = 2
+            // maximumPoolSize = 2, 应用配置信息更新执行器, 配合SpringCloudConfig和SpringCloudBus刷新应用配置信息
             cacheRefreshExecutor = new ThreadPoolExecutor(
                 1, clientConfig.getCacheRefreshExecutorThreadPoolSize(), 0, TimeUnit.SECONDS,
                 new SynchronousQueue<Runnable>(),

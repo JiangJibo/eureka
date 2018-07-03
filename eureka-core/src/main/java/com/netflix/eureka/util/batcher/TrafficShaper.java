@@ -35,11 +35,11 @@ class TrafficShaper {
     private static final long MAX_DELAY = 30 * 1000;
 
     /**
-     * 请求限流延迟重试时间，单位：毫秒
+     * 请求限流延迟重试时间，单位：毫秒 1000
      */
     private final long congestionRetryDelayMs;
     /**
-     * 网络失败延迟重试时长，单位：毫秒
+     * 网络失败延迟重试时长，单位：毫秒 100
      */
     private final long networkFailureRetryMs;
 
@@ -52,6 +52,10 @@ class TrafficShaper {
      */
     private volatile long lastNetworkFailure;
 
+    /**
+     * @param congestionRetryDelayMs
+     * @param networkFailureRetryMs
+     */
     TrafficShaper(long congestionRetryDelayMs, long networkFailureRetryMs) {
         this.congestionRetryDelayMs = Math.min(MAX_DELAY, congestionRetryDelayMs);
         this.networkFailureRetryMs = Math.min(MAX_DELAY, networkFailureRetryMs);
