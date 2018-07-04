@@ -232,7 +232,7 @@ public class EurekaBootStrap implements ServletContextListener {
         serverContext.initialize();
         logger.info("Initialized server context");
 
-        // 【2.2.10】从其他 Eureka-Server 拉取注册信息
+        // 【2.2.10】同步从其他Server拉取到的信息, DiscoveryClient实例化时已经获取到了Applications,但未注册到自身Server上
         // Copy registry from neighboring eureka node
         int registryCount = registry.syncUp();
         registry.openForTraffic(applicationInfoManager, registryCount);

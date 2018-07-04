@@ -216,7 +216,7 @@ public class PeerAwareInstanceRegistryImpl extends AbstractInstanceRegistry impl
                 }
             }
 
-            // 获取注册信息, 如果Server能够拉取应用信息,那么相当于从其他Server Endpoint同步注册信息
+            // EurekaClient实例化时已经从其他Server获取了Applications, 此时是从Client里同步至Server
             Applications apps = eurekaClient.getApplications();
             for (Application app : apps.getRegisteredApplications()) {
                 for (InstanceInfo instance : app.getInstances()) {
