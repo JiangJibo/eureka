@@ -712,6 +712,11 @@ public abstract class AbstractInstanceRegistry implements InstanceRegistry {
         evict(0L);
     }
 
+    /**
+     * 租约过期而被删除,不会更新续约期望数; 而主动Cancle会相应较少租约期望数
+     *
+     * @param additionalLeaseMs
+     */
     public void evict(long additionalLeaseMs) {
         logger.debug("Running the evict task");
 
