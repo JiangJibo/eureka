@@ -1407,7 +1407,7 @@ public abstract class AbstractInstanceRegistry implements InstanceRegistry {
     }
 
     /**
-     * 租约过期任务
+     * 服务过期任务
      */
     /* visible for testing */
     class EvictionTask extends TimerTask {
@@ -1420,10 +1420,10 @@ public abstract class AbstractInstanceRegistry implements InstanceRegistry {
         @Override
         public void run() {
             try {
-                // 获取 补偿时间毫秒数, 计算这次执行距离上次执行的时间差
+                // 获取 补偿时间毫秒数, 计算这次执行距离上次执行的时间差,与60S的距离
                 long compensationTimeMs = getCompensationTimeMs();
                 logger.info("Running the evict task with compensationTime {}ms", compensationTimeMs);
-                // 清理过期租约逻辑
+                // 清理过期服务逻辑
                 evict(compensationTimeMs);
             } catch (Throwable e) {
                 logger.error("Could not run the evict task", e);
