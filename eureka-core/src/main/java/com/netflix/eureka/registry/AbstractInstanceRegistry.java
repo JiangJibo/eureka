@@ -1511,7 +1511,6 @@ public abstract class AbstractInstanceRegistry implements InstanceRegistry {
 
     private TimerTask getDeltaRetentionTask() {
         return new TimerTask() {
-
             @Override
             public void run() {
                 Iterator<RecentlyChangedItem> it = recentlyChangedQueue.iterator();
@@ -1520,7 +1519,6 @@ public abstract class AbstractInstanceRegistry implements InstanceRegistry {
                     // 如果某个续约任务是3分钟前发生的,那么移除它
                     if (item.getLastUpdateTime() < System.currentTimeMillis() - serverConfig.getRetentionTimeInMSInDeltaQueue()) {
                         it.remove();
-                        System.err.println("[getDeltaRetentionTask]instance_id：" + item.getLeaseInfo().getHolder().getId()); // 芋艿，调试用途，请无视。debugger
                     } else {
                         break;
                     }
